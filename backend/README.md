@@ -2,7 +2,7 @@
 
 This is a Python backend that implements the API for managing cameras connected to the backend (5G-connected devices).
 
-## Run with Docker (recommended)
+## Run with Docker (dev, hot reload)
 
 From the `backend/` directory:
 
@@ -13,9 +13,9 @@ docker compose up --build
 This will start:
 
 - `mongo` on `mongodb://mongo:27017/`
-- `backend` on `http://localhost:3000`
+- `backend` on `http://localhost:3300` (container port 3000)
 
-The FastAPI docs will be at `http://localhost:3000/docs`.
+The FastAPI docs will be at `http://localhost:3300/docs`. The container mounts your local `backend/` code and runs Uvicorn with `--reload`, so changes are picked up automatically.
 
 ## Run locally without Docker
 

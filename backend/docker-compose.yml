@@ -15,6 +15,9 @@ services:
       - MONGO_URL=mongodb://mongo:27017/
     ports:
       - "3300:3000"
+    volumes:
+      - ./:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
     depends_on:
       - mongo
 

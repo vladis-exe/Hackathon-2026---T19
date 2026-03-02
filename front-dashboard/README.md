@@ -3,29 +3,23 @@
 This is the **React + Vite** dashboard for the Smart Focus Streaming project.  
 It lives in the monorepo under `front-dashboard/` and shows a grid of cameras with bandwidth, QoD status and a Smart Focus toggle per stream.
 
-## Run locally
+## Run locally (hot reload)
 
-From the monorepo root:
 
-## Run with Docker
+## Run with Docker (dev, hot reload)
 
 From `front-dashboard/`:
 
 ```bash
-docker build -t focus-stream-dashboard .
-docker run --rm -p 8080:80 focus-stream-dashboard
+docker compose up
 ```
 
-Then open `http://localhost:8080/`.
+Then open `http://localhost:8080/`. The container mounts your local code, so changes in `front-dashboard/src` reload automatically.
 
 
-```bash
-cd front-dashboard
-npm install
-npm run dev
-```
 
-Vite will start on `http://localhost:5173/`.
+
+Vite will start with hot reload (see console for the port, default 5173 or 8080).
 
 
 ## Stack
