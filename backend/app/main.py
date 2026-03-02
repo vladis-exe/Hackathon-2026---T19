@@ -65,12 +65,7 @@ async def set_high_res(cameraId: str = Path(..., description="Camera id"), value
         return_document=True
     )
     if camera:
-        return db.to_camera_dict(camera)
-    raise HTTPException(status_code=404, detail="Camera not found")
-
-    if camera:
         # Notify the specific camera via socket.io
-        # Assuming we join cameras to rooms based on their cameraId
         camera_dict = db.to_camera_dict(camera)
         await sio.emit("camera_set_highres", {"cameraId": cameraId, "high_res": value}, room=cameraId)
         return camera_dict
@@ -92,13 +87,13 @@ async def set_camera_area(req: SetAreaRequest, cameraId: str = Path(..., descrip
         "xmax": req.xmax,
         "ymax": req.ymax
     }
-    
+
     camera = db.get_db().find_one_and_update(
         {"_id": ObjectId(cameraId)},
         {"$set": {"area": area_data}},
         return_document=True
     )
-    
+
     if camera:
         # Notify the specific camera via socket.io
         # Assuming we join cameras to rooms based on their cameraId
@@ -106,6 +101,34 @@ async def set_camera_area(req: SetAreaRequest, cameraId: str = Path(..., descrip
         await sio.emit("camera_area_updated", {"cameraId": cameraId, "area": area_data}, room=cameraId)
         return camera_dict
         
+    raise HTTPException(status_code=404, detail="Camera not found")
+
+@api_app.get("/api/dashboard/cameras/{cameraId}/area", tags=["cameras"], responses={400: {"model": Error}, 404: {"model": Error}})
+def get_camera_area(cameraId: str = Path(..., description="Camera id")):
+    """
+    Get the selected area for a camera feed
+    """
+    from bson import ObjectId
+    if not ObjectId.is_valid(cameraId):
+        raise HTTPException(status_code=400, detail="Invalid camera ID format.")
+
+    camera = db.get_db().find_one({"_id": ObjectId(cameraId)})
+    if camera:
+        return {"area": camera.get("area")}
+    raise HTTPException(status_code=404, detail="Camera not found")
+
+@api_app.get("/api/dashboard/cameras/{cameraId}/highres", tags=["cameras"], responses={400: {"model": Error}, 404: {"model": Error}})
+def get_camera_highres(cameraId: str = Path(..., description="Camera id")):
+    """
+    Get the high-resolution setting for a camera
+    """
+    from bson import ObjectId
+    if not ObjectId.is_valid(cameraId):
+        raise HTTPException(status_code=400, detail="Invalid camera ID format.")
+
+    camera = db.get_db().find_one({"_id": ObjectId(cameraId)})
+    if camera:
+        return {"highResolution": camera.get("highResolution", False)}
     raise HTTPException(status_code=404, detail="Camera not found")
 
 @api_app.post("/api/dashboard/cameras/register", response_model=Camera, status_code=201, tags=["cameras"], responses={400: {"model": Error}})
