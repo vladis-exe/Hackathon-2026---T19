@@ -7,23 +7,6 @@ from network_as_code.models.device import DeviceIpv4Addr, AccessTokenCredential
 
 
 def load_config() -> dict:
-    """
-    Load configuration for a simple QoD test from environment variables.
-
-    You can define these in a local .env file at the project root, e.g.:
-
-        NAC_API_KEY=...
-        NAC_DEVICE_ID=device@testcsp.net
-        NAC_DEVICE_PUBLIC_IP=233.252.0.2
-        NAC_DEVICE_PRIVATE_IP=192.0.2.25
-        NAC_DEVICE_PUBLIC_PORT=80
-        NAC_DEVICE_PHONE=+3672123456
-        NAC_QOD_SINK_URL=https://example.com/notifications
-        NAC_QOD_PROFILE=QOS_L
-        NAC_QOD_DURATION=600
-        NAC_SERVICE_IPV4=233.252.0.2
-        NAC_SERVICE_IPV6=2001:db8:1234:5678:9abc:def0:fedc:ba98
-    """
 
     load_dotenv()
 

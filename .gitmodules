@@ -1,0 +1,3 @@
+[submodule "front-dashboard"]
+	path = front-dashboard
+	url = https://github.com/vladis-exe/focus-stream-dashboard

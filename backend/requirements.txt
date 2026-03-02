@@ -5,3 +5,5 @@ python-dotenv
 pydantic
 motor
 python-socketio
+network_as_code
+
