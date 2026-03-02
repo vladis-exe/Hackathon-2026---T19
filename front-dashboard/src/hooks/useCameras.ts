@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Camera, FocusArea } from "@/types/camera";
+import { fetchCameras as fetchCamerasFromApi, toggleSmartFocus as toggleSmartFocusApi } from "@/services/api";
 
 const MOCK_CAMERAS: Camera[] = [
   {
@@ -125,8 +126,34 @@ const MOCK_CAMERAS: Camera[] = [
   },
 ];
 
+export type CamerasDataSource = "api" | "mock" | "loading";
+
 export function useCameras() {
-  const [cameras, setCameras] = useState<Camera[]>(MOCK_CAMERAS);
+  const [cameras, setCameras] = useState<Camera[]>([]);
+  const [dataSource, setDataSource] = useState<CamerasDataSource>("loading");
+
+  // On mount, load cameras from backend; use mock only when the request fails.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const apiCameras = await fetchCamerasFromApi();
+        if (!cancelled) {
+          setCameras(apiCameras);
+          setDataSource("api");
+        }
+      } catch (err) {
+        console.warn("Failed to load cameras from backend, using mock data instead:", err);
+        if (!cancelled) {
+          setCameras(MOCK_CAMERAS);
+          setDataSource("mock");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Simulate bandwidth fluctuation
   useEffect(() => {
@@ -164,6 +191,10 @@ export function useCameras() {
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           message: enabled ? "Smart Focus enabled" : "Smart Focus disabled",
         };
+        // Fire-and-forget backend update; UI remains optimistic.
+        toggleSmartFocusApi(cameraId, enabled).catch((err) =>
+          console.warn("Failed to toggle smart focus in backend:", err)
+        );
         return {
           ...cam,
           smartFocusEnabled: enabled,
@@ -189,5 +220,5 @@ export function useCameras() {
   const totalBandwidthKbps = cameras.reduce((sum, c) => sum + c.bandwidthKbps, 0);
   const onlineCount = cameras.filter((c) => c.online).length;
 
-  return { cameras, toggleSmartFocus, setFocusArea, totalBandwidthKbps, onlineCount };
+  return { cameras, toggleSmartFocus, setFocusArea, totalBandwidthKbps, onlineCount, dataSource };
 }

@@ -1,12 +1,14 @@
-import { Wifi, WifiOff, Activity } from "lucide-react";
+import { Wifi, WifiOff, Activity, Server, Database } from "lucide-react";
+import type { CamerasDataSource } from "@/hooks/useCameras";
 
 interface HeaderProps {
   totalBandwidthKbps: number;
   onlineCount: number;
   totalCount: number;
+  dataSource?: CamerasDataSource;
 }
 
-export function Header({ totalBandwidthKbps, onlineCount, totalCount }: HeaderProps) {
+export function Header({ totalBandwidthKbps, onlineCount, totalCount, dataSource }: HeaderProps) {
   const isConnected = onlineCount > 0;
   const totalMbps = (totalBandwidthKbps / 1000).toFixed(1);
 
@@ -29,6 +31,23 @@ export function Header({ totalBandwidthKbps, onlineCount, totalCount }: HeaderPr
             <span className="text-data font-semibold text-foreground">{totalMbps} Mbps</span>
           </div>
 
+          {dataSource && (
+            <div className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2 py-1">
+              {dataSource === "api" ? (
+                <>
+                  <Server className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-xs text-foreground">Live API</span>
+                </>
+              ) : dataSource === "mock" ? (
+                <>
+                  <Database className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Demo data</span>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">Loading…</span>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             {isConnected ? (
               <>

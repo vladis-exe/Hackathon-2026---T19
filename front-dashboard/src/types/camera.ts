@@ -27,4 +27,5 @@ export interface Camera {
   packetLoss: number;
   events: CameraEvent[];
   focusArea?: FocusArea;
+  streamUrl?: string;
 }

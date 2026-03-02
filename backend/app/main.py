@@ -2,7 +2,6 @@ from app.gemini import get_prompt
 from fastapi import FastAPI, HTTPException, Path, Body
 from fastapi.responses import FileResponse, HTMLResponse
 from typing import List
-import uuid
 from pathlib import Path as PathLib
 from dotenv import load_dotenv
 import httpx
@@ -21,12 +20,14 @@ active_categories = []
 api_app = FastAPI(
     title="Dashboard Cameras API",
     version="1.0.0",
-    description="API for managing cameras connected to the backend (5G-connected devices)"
+    description="API for managing cameras connected to the backend (5G-connected devices)",
 )
+
 
 @api_app.get("/api/")
 def read_root():
     return {"message": "Welcome to the Dashboard Cameras API"}
+
 
 @api_app.get("/api/dashboard/cameras", response_model=List[Camera], tags=["cameras"])
 def list_cameras():
@@ -36,7 +37,12 @@ def list_cameras():
     cameras = [db.to_camera_dict(camera) for camera in db.get_db().find()]
     return cameras
 
-@api_app.get("/api/dashboard/camera/{id}", response_model=Camera, tags=["cameras"], responses={404: {"model": Error}})
+@api_app.get(
+    "/api/dashboard/camera/{id}",
+    response_model=Camera,
+    tags=["cameras"],
+    responses={404: {"model": Error}},
+)
 def get_camera_by_id(id: str = Path(..., description="Camera id (UUID or internal id)")):
     """
     Get a single camera by id
@@ -50,7 +56,12 @@ def get_camera_by_id(id: str = Path(..., description="Camera id (UUID or interna
         return db.to_camera_dict(camera)
     raise HTTPException(status_code=404, detail="Camera not found")
 
-@api_app.post("/api/dashboard/cameras/{cameraId}/set_highres/{value}", response_model=Camera, tags=["cameras"], responses={400: {"model": Error}, 404: {"model": Error}})
+@api_app.post(
+    "/api/dashboard/cameras/{cameraId}/set_highres/{value}",
+    response_model=Camera,
+    tags=["cameras"],
+    responses={400: {"model": Error}, 404: {"model": Error}},
+)
 async def set_high_res(cameraId: str = Path(..., description="Camera id"), value: bool = Path(..., description="true to enable high-resolution mode, false to disable")):
     """
     Set high-resolution mode for a camera
@@ -131,7 +142,13 @@ def get_camera_highres(cameraId: str = Path(..., description="Camera id")):
         return {"highResolution": camera.get("highResolution", False)}
     raise HTTPException(status_code=404, detail="Camera not found")
 
-@api_app.post("/api/dashboard/cameras/register", response_model=Camera, status_code=201, tags=["cameras"], responses={400: {"model": Error}})
+@api_app.post(
+    "/api/dashboard/cameras/register",
+    response_model=Camera,
+    status_code=201,
+    tags=["cameras"],
+    responses={400: {"model": Error}},
+)
 def register_camera(req: RegisterCameraRequest):
     """
     Register a new camera
@@ -142,6 +159,9 @@ def register_camera(req: RegisterCameraRequest):
     result = db.get_db().insert_one(new_camera_data)
     created_camera = db.get_db().find_one({"_id": result.inserted_id})
     
+    return db.to_camera_dict(created_camera)
+
+
     return db.to_camera_dict(created_camera)
 
 
@@ -181,6 +201,17 @@ async def call_gemini_api(
     await sio.emit("categories", active_categories)
     
     return data
+
+# Simple test video endpoint serving the bundled MP4 file so the frontend
+# can render a live-like preview without a real camera connected yet.
+TEST_VIDEO_PATH = PathLib(__file__).resolve().parents[1] / "testing" / "6853337-uhd_2160_4096_25fps.mp4"
+
+
+@api_app.get("/api/test-video", include_in_schema=False)
+def test_video():
+    if not TEST_VIDEO_PATH.exists():
+        raise HTTPException(status_code=404, detail="Test video not found")
+    return FileResponse(str(TEST_VIDEO_PATH), media_type="video/mp4")
 
 # Serve the repository openapi.yaml file if present
 @api_app.get("/openapi.yaml", include_in_schema=False)

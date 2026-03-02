@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { cameras, toggleSmartFocus, totalBandwidthKbps, onlineCount } = useCameras();
+  const { cameras, toggleSmartFocus, totalBandwidthKbps, onlineCount, dataSource } = useCameras();
 
   const handleToggle = (id: string) => {
     const cam = cameras.find((c) => c.id === id);
@@ -27,6 +27,7 @@ const Index = () => {
         totalBandwidthKbps={totalBandwidthKbps}
         onlineCount={onlineCount}
         totalCount={cameras.length}
+        dataSource={dataSource}
       />
 
       <main className="container mx-auto px-4 py-6 md:px-6">
