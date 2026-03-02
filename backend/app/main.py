@@ -111,8 +111,7 @@ async def call_gemini_api(
     print(text)
     data = json.loads(text)
     
-    from app.camera_websockets import sio_cameras
-    await sio_cameras.emit("categories_changed", data)
+    await sio.emit("categories_changed", data["categories"])
     
     return data
 
@@ -207,8 +206,4 @@ async def stop_background_tasks():
 
 
 # Create ASGI app that mounts Socket.IO and the FastAPI app together.
-socketio_asgi_app = socketio.ASGIApp(sio, other_asgi_app=api_app)
-
-from app.camera_websockets import sio_cameras
-# Export the ASGI app as `app` so uvicorn can import it as before
-app = socketio.ASGIApp(sio_cameras, other_asgi_app=socketio_asgi_app, socketio_path="api/cameras/ws")
+app = socketio.ASGIApp(sio, other_asgi_app=api_app)
