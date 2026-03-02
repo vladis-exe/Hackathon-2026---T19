@@ -81,7 +81,7 @@ def register_camera(req: RegisterCameraRequest):
 
 
 @api_app.post("/api/gemini/set_categories", tags=["gemini"], response_model=dict)
-def call_gemini_api(
+async def call_gemini_api(
     payload: GeminiPromptRequest = Body(..., example={"prompt": "Your question here"})
 ):
     user_prompt = payload.prompt
@@ -92,12 +92,14 @@ def call_gemini_api(
     prompt = get_prompt(user_prompt)
 
     client = genai.Client(http_options=HttpOptions(api_version="v1"), api_key=os.environ.get("GEMINI_API_KEY"))
-    response = client.models.generate_content(
+    
+    import asyncio
+    response = await asyncio.to_thread(
+        client.models.generate_content,
         model="gemini-2.5-flash",
         contents=prompt,
     )
 
-    # TODO send the response to all connected cameras
     text = response.text.strip()
     if text.startswith("```json"):
         text = text[7:].strip()
@@ -107,7 +109,12 @@ def call_gemini_api(
         text = text[:-3].strip()
 
     print(text)
-    return json.loads(text)
+    data = json.loads(text)
+    
+    from app.camera_websockets import sio_cameras
+    await sio_cameras.emit("categories_changed", data)
+    
+    return data
 
 # Serve the repository openapi.yaml file if present
 @api_app.get("/openapi.yaml", include_in_schema=False)
@@ -202,6 +209,6 @@ async def stop_background_tasks():
 # Create ASGI app that mounts Socket.IO and the FastAPI app together.
 socketio_asgi_app = socketio.ASGIApp(sio, other_asgi_app=api_app)
 
+from app.camera_websockets import sio_cameras
 # Export the ASGI app as `app` so uvicorn can import it as before
-app = socketio_asgi_app
-
+app = socketio.ASGIApp(sio_cameras, other_asgi_app=socketio_asgi_app, socketio_path="api/cameras/ws")
