@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => ({
   },
   proxy: {
     "/api": {
-      target: "http://localhost:8080",
+      // Backend FastAPI service (Docker) exposed on host port 3300
+      target: "http://localhost:3300",
       changeOrigin: true,
     },
   },
