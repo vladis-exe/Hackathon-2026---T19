@@ -123,6 +123,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/gemini/categories:
+    post:
+      summary: Call the Google Gemini API with a user-provided prompt.
+      operationId: callGeminiApi
+      tags:
+        - gemini
+      requestBody:
+        description: Prompt payload for Gemini
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt:
+                  type: string
+                  example: "Your question here"
+              required:
+                - prompt
+      responses:
+        '200':
+          description: Successful response from Gemini API
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Missing 'prompt' in request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Bad Gateway
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   schemas:
     Camera:
@@ -212,3 +257,5 @@ components:
 tags:
   - name: cameras
     description: Camera management endpoints
+  - name: gemini
+    description: Gemini API endpoints

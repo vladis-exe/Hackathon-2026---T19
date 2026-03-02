@@ -8,24 +8,7 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
-}
-
-const MOCK_RESPONSES: Record<string, string> = {
-  bandwidth: "Total bandwidth across all cameras is currently within optimal range. Smart Focus is reducing consumption by ~35% on enabled cameras.",
-  focus: "Smart Focus uses AI object detection to prioritize important regions in the frame. You can select a custom focus area by drawing a rectangle on the video preview.",
-  cameras: "You currently have 6 cameras configured. 5 are online and 1 (Rooftop Cam) is offline since 11:20.",
-  help: "I can help with:\n• Camera status & diagnostics\n• Bandwidth optimization tips\n• Smart Focus configuration\n• QoD (Quality on Demand) settings\n\nJust ask!",
-  qod: "QoD (Quality on Demand) allows you to request prioritized network bandwidth from the carrier. It's currently active on Drone 1, Stage Cam 2, and Parking Lot.",
-};
-
-function getMockResponse(input: string): string {
-  const lower = input.toLowerCase();
-  if (lower.includes("bandwidth") || lower.includes("saving")) return MOCK_RESPONSES.bandwidth;
-  if (lower.includes("focus") || lower.includes("area")) return MOCK_RESPONSES.focus;
-  if (lower.includes("camera") || lower.includes("status") || lower.includes("offline")) return MOCK_RESPONSES.cameras;
-  if (lower.includes("qod") || lower.includes("quality")) return MOCK_RESPONSES.qod;
-  if (lower.includes("help") || lower.includes("what")) return MOCK_RESPONSES.help;
-  return "I'm the Smart Focus assistant. Try asking about bandwidth, cameras, focus areas, or QoD settings!";
+  categories?: string[];
 }
 
 interface ChatPanelProps {
@@ -38,7 +21,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
     {
       id: "1",
       role: "assistant",
-      content: "Hey! I'm your Smart Focus assistant. Ask me about cameras, bandwidth, or AI focus settings.",
+      content: "Hello! Please explain what would you want the cameras to focus on.",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -50,7 +33,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim()) return;
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -62,19 +45,48 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response = getMockResponse(userMsg.content);
+    try {
+      const response = await fetch("/api/gemini/set_categories", {
+        method: "POST",
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: input.trim(),
+        }),
+      });
+
+      const message = await response.json() as {
+        categories: string[],
+        response: string,
+      };
+
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: response,
+          content: message.response,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          categories: message.categories,
         },
       ]);
+    } catch (e) {
+      console.error(e);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "There was an error generating the response. Please try again later.",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        }
+      ])
+    } finally {
       setIsTyping(false);
-    }, 800 + Math.random() * 600);
+    }
   };
 
   return (
@@ -90,7 +102,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
       {/* Sidebar panel */}
       <aside
         className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[340px] flex-col border-l border-border bg-card transition-transform duration-300",
+          "fixed right-0 top-0 z-50 flex h-full w-[420px] flex-col border-l border-border bg-card transition-transform duration-300",
           open ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -102,7 +114,6 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
             </div>
             <div>
               <h3 className="text-sm font-semibold">SF Assistant</h3>
-              <span className="text-[10px] text-success">Online</span>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">
@@ -129,6 +140,23 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
                 )}
               >
                 <p className="whitespace-pre-line">{msg.content}</p>
+                {msg.categories && msg.categories.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {msg.categories.map((cat, idx) => (
+                      <span
+                        key={idx}
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                          msg.role === "user"
+                            ? "bg-primary-foreground/20 text-primary-foreground"
+                            : "bg-primary/20 text-primary"
+                        )}
+                      >
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <span
                   className={cn(
                     "mt-1 block text-[9px] opacity-50",
@@ -143,7 +171,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
           {isTyping && (
             <div className="flex justify-start">
               <div className="rounded-lg bg-secondary px-3 py-2 text-xs text-muted-foreground">
-                <span className="animate-pulse">Typing...</span>
+                <span className="animate-pulse">Thinking...</span>
               </div>
             </div>
           )}
@@ -161,7 +189,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about cameras, bandwidth..."
+              placeholder="Explain what you want the cameras to focus on..."
               className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <Button

@@ -1,11 +1,18 @@
-from fastapi import FastAPI, HTTPException, Path
+from app.gemini import get_prompt
+from fastapi import FastAPI, HTTPException, Path, Body
 from fastapi.responses import FileResponse, HTMLResponse
 from typing import List
 import uuid
 from pathlib import Path as PathLib
 from dotenv import load_dotenv
+import httpx
+import os
+from google import genai
+from google.genai.types import HttpOptions
+import json
+
 from . import database as db
-from .models import Camera, RegisterCameraRequest, Error
+from .models import Camera, RegisterCameraRequest, Error, GeminiPromptRequest
 
 load_dotenv()
 
@@ -72,6 +79,35 @@ def register_camera(req: RegisterCameraRequest):
     
     return db.to_camera_dict(created_camera)
 
+
+@api_app.post("/api/gemini/set_categories", tags=["gemini"], response_model=dict)
+def call_gemini_api(
+    payload: GeminiPromptRequest = Body(..., example={"prompt": "Your question here"})
+):
+    user_prompt = payload.prompt
+    if not user_prompt:
+        raise HTTPException(status_code=400, detail="Missing 'prompt' in request body.")
+
+
+    prompt = get_prompt(user_prompt)
+
+    client = genai.Client(http_options=HttpOptions(api_version="v1"), api_key=os.environ.get("GEMINI_API_KEY"))
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
+
+    # TODO send the response to all connected cameras
+    text = response.text.strip()
+    if text.startswith("```json"):
+        text = text[7:].strip()
+    elif text.startswith("```"):
+        text = text[3:].strip()
+    if text.endswith("```"):
+        text = text[:-3].strip()
+
+    print(text)
+    return json.loads(text)
 
 # Serve the repository openapi.yaml file if present
 @api_app.get("/openapi.yaml", include_in_schema=False)

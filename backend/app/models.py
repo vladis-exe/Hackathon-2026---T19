@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, model_validator
+from typing import Optional, List, Any
+import json
 
 class Location(BaseModel):
     latitude: Optional[float] = None
@@ -22,3 +23,16 @@ class RegisterCameraRequest(BaseModel):
 class Error(BaseModel):
     code: int
     message: str
+
+class GeminiPromptRequest(BaseModel):
+    prompt: str
+
+    @model_validator(mode='before')
+    @classmethod
+    def validate_to_json(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                pass
+        return value

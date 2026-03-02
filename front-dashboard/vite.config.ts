@@ -11,12 +11,12 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-  },
-  proxy: {
-    "/api": {
-      // Backend FastAPI service (Docker) exposed on host port 3300
-      target: "http://localhost:3300",
-      changeOrigin: true,
+    proxy: {
+      "/api": {
+        // Backend FastAPI service (Docker) exposed on host port 3300
+        target: "http://localhost:3300",
+        changeOrigin: true,
+      },
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

@@ -5,6 +5,7 @@ import { StatusBadge } from "./StatusBadge";
 import { Separator } from "@/components/ui/separator";
 import { MapPin, Clock, Zap, Monitor, Film, AlertTriangle, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WebRTCPlayer } from "./WebRTCPlayer";
 
 interface CameraDetailDrawerProps {
   camera: Camera | null;
@@ -37,9 +38,8 @@ export function CameraDetailDrawer({ camera, open, onClose }: CameraDetailDrawer
               )}
             >
               {camera.online ? (
-                <div className="flex flex-col items-center gap-2">
-                  <Eye className="h-12 w-12 text-muted-foreground/30" />
-                  <span className="text-xs text-muted-foreground/40">LIVE PREVIEW</span>
+                <div className="flex h-full w-full overflow-hidden relative items-center justify-center">
+                  <WebRTCPlayer cameraId={camera.id} />
                 </div>
               ) : (
                 <span className="text-sm text-muted-foreground/40">CAMERA OFFLINE</span>
