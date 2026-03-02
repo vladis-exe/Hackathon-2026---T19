@@ -12,9 +12,11 @@ from google.genai.types import HttpOptions
 import json
 
 from . import database as db
-from .models import Camera, RegisterCameraRequest, Error, GeminiPromptRequest
+from .models import Camera, RegisterCameraRequest, Error, GeminiPromptRequest, SetAreaRequest
 
 load_dotenv()
+
+active_categories = []
 
 api_app = FastAPI(
     title="Dashboard Cameras API",
@@ -49,7 +51,7 @@ def get_camera_by_id(id: str = Path(..., description="Camera id (UUID or interna
     raise HTTPException(status_code=404, detail="Camera not found")
 
 @api_app.post("/api/dashboard/cameras/{cameraId}/set_highres/{value}", response_model=Camera, tags=["cameras"], responses={400: {"model": Error}, 404: {"model": Error}})
-def set_high_res(cameraId: str = Path(..., description="Camera id"), value: bool = Path(..., description="true to enable high-resolution mode, false to disable")):
+async def set_high_res(cameraId: str = Path(..., description="Camera id"), value: bool = Path(..., description="true to enable high-resolution mode, false to disable")):
     """
     Set high-resolution mode for a camera
     """
@@ -64,6 +66,46 @@ def set_high_res(cameraId: str = Path(..., description="Camera id"), value: bool
     )
     if camera:
         return db.to_camera_dict(camera)
+    raise HTTPException(status_code=404, detail="Camera not found")
+
+    if camera:
+        # Notify the specific camera via socket.io
+        # Assuming we join cameras to rooms based on their cameraId
+        camera_dict = db.to_camera_dict(camera)
+        await sio.emit("camera_set_highres", {"cameraId": cameraId, "high_res": value}, room=cameraId)
+        return camera_dict
+        
+    raise HTTPException(status_code=404, detail="Camera not found")
+
+@api_app.post("/api/dashboard/cameras/{cameraId}/set_area", response_model=Camera, tags=["cameras"], responses={400: {"model": Error}, 404: {"model": Error}})
+async def set_camera_area(req: SetAreaRequest, cameraId: str = Path(..., description="Camera id")):
+    """
+    Select an area in a camera feed
+    """
+    from bson import ObjectId
+    if not ObjectId.is_valid(cameraId):
+        raise HTTPException(status_code=400, detail="Invalid camera ID format.")
+
+    area_data = {
+        "xmin": req.xmin,
+        "ymin": req.ymin,
+        "xmax": req.xmax,
+        "ymax": req.ymax
+    }
+    
+    camera = db.get_db().find_one_and_update(
+        {"_id": ObjectId(cameraId)},
+        {"$set": {"area": area_data}},
+        return_document=True
+    )
+    
+    if camera:
+        # Notify the specific camera via socket.io
+        # Assuming we join cameras to rooms based on their cameraId
+        camera_dict = db.to_camera_dict(camera)
+        await sio.emit("camera_area_updated", {"cameraId": cameraId, "area": area_data}, room=cameraId)
+        return camera_dict
+        
     raise HTTPException(status_code=404, detail="Camera not found")
 
 @api_app.post("/api/dashboard/cameras/register", response_model=Camera, status_code=201, tags=["cameras"], responses={400: {"model": Error}})
@@ -84,6 +126,7 @@ def register_camera(req: RegisterCameraRequest):
 async def call_gemini_api(
     payload: GeminiPromptRequest = Body(..., example={"prompt": "Your question here"})
 ):
+    global active_categories
     user_prompt = payload.prompt
     if not user_prompt:
         raise HTTPException(status_code=400, detail="Missing 'prompt' in request body.")
@@ -110,8 +153,9 @@ async def call_gemini_api(
 
     print(text)
     data = json.loads(text)
+    active_categories = data["categories"]
     
-    await sio.emit("categories_changed", data["categories"])
+    await sio.emit("categories", active_categories)
     
     return data
 
@@ -166,6 +210,15 @@ sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 
 @sio.event
 async def connect(sid, environ):
+    # If the connecting client provides a cameraId in the query string, join them to that room
+    query_string = environ.get('QUERY_STRING', '')
+    query_params = dict(q.split('=') for q in query_string.split('&') if '=' in q)
+    camera_id = query_params.get('cameraId')
+    
+    if camera_id:
+        sio.enter_room(sid, camera_id)
+        print(f"Socket {sid} joined room: {camera_id}")
+    
     # Optionally log or perform auth here
     print(f"Socket connected: {sid}")
 
@@ -173,6 +226,11 @@ async def connect(sid, environ):
 @sio.event
 async def disconnect(sid):
     print(f"Socket disconnected: {sid}")
+
+
+@sio.event
+async def categories_request(sid, *args):
+    await sio.emit("categories", active_categories, to=sid)
 
 
 async def broadcast_cameras_periodically():
@@ -186,6 +244,7 @@ async def broadcast_cameras_periodically():
             # Log and continue
             print("Error broadcasting cameras:", e)
         await asyncio.sleep(1)
+
 
 
 @api_app.on_event("startup")

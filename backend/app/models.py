@@ -14,6 +14,7 @@ class Camera(BaseModel):
     highResolution: bool
     webrtcStream: Optional[str] = Field(None, description="WebRTC stream endpoint or identifier for the camera")
     location: Optional[Location] = None
+    area: Optional[List[dict]] = Field(None, description="Selected area coordinates")
 
 class RegisterCameraRequest(BaseModel):
     phoneNumber: str = Field(..., description="Phone number for the camera's 5G connection")
@@ -23,6 +24,12 @@ class RegisterCameraRequest(BaseModel):
 class Error(BaseModel):
     code: int
     message: str
+
+class SetAreaRequest(BaseModel):
+    xmin: float
+    ymin: float
+    xmax: float
+    ymax: float
 
 class GeminiPromptRequest(BaseModel):
     prompt: str
