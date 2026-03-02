@@ -1,0 +1,35 @@
+@startuml c4_container
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(operator, "Operator", "")
+
+System_Boundary(edge, "Edge") {
+    Container(cam, "Camera", "IP Webcam / Kotlin", "Streams low-res video baseline")
+    System_Boundary(phone, "Phone", "Mobile Device", "NaC device — gets QoD bandwidth burst") {
+      Container(edgeRouter, "Edge Router", "Go", "")
+      Container(vision, "Vision Model", "YOLOv8", "Detects motion and classifies objects in frames")
+    }
+}
+
+System_Boundary(server, "Server") {
+    Container(backend, "Backend", "Go?", "Receives live streams and stores")
+    Container(dashboardUI, "Dashboard UI", "FastAPI/Streamlit? + Python", "Orchestrates detection and video streaming")
+}
+
+System_Boundary(nokiaNetworkAsCode, "Nokia Network As Code") {
+    Container(rapidAPI, "Rapid API", "")
+
+}
+
+
+Rel(cam, edgeRouter, "streams frames", "UDP")
+Rel(edgeRouter, backend, "streams frames through low and high resolution channels", "UDP")
+Rel(backend, edgeRouter, "retrieves detection criteria", "HTTP")
+Rel(edgeRouter, vision, "sends raw frames", "")
+Rel(vision, edgeRouter, "returns detections", "")
+Rel(edgeRouter, rapidAPI, "QoD burst via NaC", "HTTP")
+Rel(operator, dashboardUI, "Views cameras and defines criterias", "HTTP")
+Rel(dashboardUI, backend, "Retrieves live streams and recorded videos", "HTTP")
+
+@enduml
