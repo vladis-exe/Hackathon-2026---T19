@@ -8,7 +8,7 @@ servers:
     description: Local development server
 
 paths:
-  /dashboard/cameras:
+  /api/dashboard/cameras:
     get:
       summary: Get list of cameras
       operationId: listCameras
@@ -30,7 +30,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /dashboard/camera/{id}:
+  /api/dashboard/camera/{id}:
     get:
       summary: Get a single camera by id
       operationId: getCameraById
@@ -57,7 +57,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /dashboard/cameras/{cameraId}/set_highres/{value}:
+  /api/dashboard/cameras/{cameraId}/set_highres/{value}:
     post:
       summary: Set high-resolution mode for a camera
       operationId: setHighRes
@@ -96,7 +96,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /dashboard/cameras/register:
+  /api/dashboard/cameras/register:
     post:
       summary: Register a new camera
       operationId: registerCamera

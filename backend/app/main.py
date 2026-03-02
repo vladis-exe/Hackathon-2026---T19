@@ -3,20 +3,23 @@ from fastapi.responses import FileResponse, HTMLResponse
 from typing import List
 import uuid
 from pathlib import Path as PathLib
-
+from dotenv import load_dotenv
 from . import database as db
 from .models import Camera, RegisterCameraRequest, Error
+
+load_dotenv()
+
 api_app = FastAPI(
-  title="Dashboard Cameras API",
-  version="1.0.0",
-  description="API for managing cameras connected to the backend (5G-connected devices)"
+    title="Dashboard Cameras API",
+    version="1.0.0",
+    description="API for managing cameras connected to the backend (5G-connected devices)"
 )
 
-@api_app.get("/")
+@api_app.get("/api/")
 def read_root():
     return {"message": "Welcome to the Dashboard Cameras API"}
 
-@api_app.get("/dashboard/cameras", response_model=List[Camera], tags=["cameras"])
+@api_app.get("/api/dashboard/cameras", response_model=List[Camera], tags=["cameras"])
 def list_cameras():
     """
     Get list of cameras
@@ -24,7 +27,7 @@ def list_cameras():
     cameras = [db.to_camera_dict(camera) for camera in db.get_db().find()]
     return cameras
 
-@api_app.get("/dashboard/camera/{id}", response_model=Camera, tags=["cameras"], responses={404: {"model": Error}})
+@api_app.get("/api/dashboard/camera/{id}", response_model=Camera, tags=["cameras"], responses={404: {"model": Error}})
 def get_camera_by_id(id: str = Path(..., description="Camera id (UUID or internal id)")):
     """
     Get a single camera by id
@@ -38,7 +41,7 @@ def get_camera_by_id(id: str = Path(..., description="Camera id (UUID or interna
         return db.to_camera_dict(camera)
     raise HTTPException(status_code=404, detail="Camera not found")
 
-@api_app.post("/dashboard/cameras/{cameraId}/set_highres/{value}", response_model=Camera, tags=["cameras"], responses={400: {"model": Error}, 404: {"model": Error}})
+@api_app.post("/api/dashboard/cameras/{cameraId}/set_highres/{value}", response_model=Camera, tags=["cameras"], responses={400: {"model": Error}, 404: {"model": Error}})
 def set_high_res(cameraId: str = Path(..., description="Camera id"), value: bool = Path(..., description="true to enable high-resolution mode, false to disable")):
     """
     Set high-resolution mode for a camera
@@ -56,7 +59,7 @@ def set_high_res(cameraId: str = Path(..., description="Camera id"), value: bool
         return db.to_camera_dict(camera)
     raise HTTPException(status_code=404, detail="Camera not found")
 
-@api_app.post("/dashboard/cameras/register", response_model=Camera, status_code=201, tags=["cameras"], responses={400: {"model": Error}})
+@api_app.post("/api/dashboard/cameras/register", response_model=Camera, status_code=201, tags=["cameras"], responses={400: {"model": Error}})
 def register_camera(req: RegisterCameraRequest):
     """
     Register a new camera
@@ -82,7 +85,7 @@ def serve_openapi_yaml():
 
 
 # Swagger UI that loads the static `/openapi.yaml` so docs come from the repo file
-@api_app.get("/swagger", response_class=HTMLResponse, include_in_schema=False)
+@api_app.get("/api/swagger", response_class=HTMLResponse, include_in_schema=False)
 def swagger_ui_html():
         html = """
 <!DOCTYPE html>
