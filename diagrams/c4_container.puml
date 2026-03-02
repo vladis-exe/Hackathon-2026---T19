@@ -13,6 +13,7 @@ System_Boundary(edge, "Edge") {
 }
 
 System_Boundary(server, "Server") {
+    Container(turnServer, "Turn Server", "Video Relay")
     Container(backend, "Backend", "Go?", "Receives live streams and stores")
     Container(dashboardUI, "Dashboard UI", "FastAPI/Streamlit? + Python", "Orchestrates detection and video streaming")
 }
@@ -24,12 +25,16 @@ System_Boundary(nokiaNetworkAsCode, "Nokia Network As Code") {
 
 
 Rel(cam, edgeRouter, "streams frames", "UDP")
-Rel(edgeRouter, backend, "streams frames through low and high resolution channels", "UDP")
+Rel(edgeRouter, turnServer, "streams frames through low and high resolution channels", "UDP")
+
 Rel(backend, edgeRouter, "retrieves detection criteria", "HTTP")
 Rel(edgeRouter, vision, "sends raw frames", "")
 Rel(vision, edgeRouter, "returns detections", "")
 Rel(edgeRouter, rapidAPI, "QoD burst via NaC", "HTTP")
 Rel(operator, dashboardUI, "Views cameras and defines criterias", "HTTP")
-Rel(dashboardUI, backend, "Retrieves live streams and recorded videos", "HTTP")
+Rel(turnServer, dashboardUI, "streams live streams and recorded videos", "WebRTC")
+Rel(dashboardUI, backend, "defines detection criteria", "WebRTC")
+
+
 
 @enduml
