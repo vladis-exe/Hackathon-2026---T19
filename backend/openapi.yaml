@@ -1,0 +1,214 @@
+openapi: 3.0.3
+info:
+  title: Dashboard Cameras API
+  version: "1.0.0"
+  description: API for managing cameras connected to the backend (5G-connected devices)
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+paths:
+  /dashboard/cameras:
+    get:
+      summary: Get list of cameras
+      operationId: listCameras
+      tags:
+        - cameras
+      responses:
+        '200':
+          description: Array of camera objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Camera'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/camera/{id}:
+    get:
+      summary: Get a single camera by id
+      operationId: getCameraById
+      tags:
+        - cameras
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Camera id (UUID or internal id)
+      responses:
+        '200':
+          description: Camera object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Camera'
+        '404':
+          description: Camera not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/cameras/{cameraId}/set_highres/{value}:
+    post:
+      summary: Set high-resolution mode for a camera
+      operationId: setHighRes
+      tags:
+        - cameras
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Camera id
+        - name: value
+          in: path
+          required: true
+          schema:
+            type: boolean
+          description: true to enable high-resolution mode, false to disable
+      responses:
+        '200':
+          description: Updated camera object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Camera'
+        '400':
+          description: Invalid parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Camera not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/cameras/register:
+    post:
+      summary: Register a new camera
+      operationId: registerCamera
+      tags:
+        - cameras
+      requestBody:
+        description: Registration data for a new camera (connected via 5G)
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterCameraRequest'
+      responses:
+        '201':
+          description: Camera registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Camera'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Camera:
+      type: object
+      description: Representation of a camera connected to the backend
+      properties:
+        id:
+          type: string
+          description: Unique camera id (UUID or internal id)
+          example: "c4f3a8d2-1b2c-45e6-9f0a-123456789abc"
+        name:
+          type: string
+          example: "Entrance Camera A"
+        phoneNumber:
+          type: string
+          description: Phone number of the camera's 5G connection
+          example: "+15551234567"
+        highResolution:
+          type: boolean
+          description: Whether camera is currently in high-resolution mode
+          example: false
+        webrtcStream:
+          type: string
+          description: WebRTC stream endpoint or identifier for the camera
+          example: "stream-1234" 
+        location:
+          type: object
+          description: Camera location information
+          properties:
+            latitude:
+              type: number
+              format: double
+              example: 37.7749
+            longitude:
+              type: number
+              format: double
+              example: -122.4194
+            description:
+              type: string
+              example: "Front entrance, 2nd floor"
+      required:
+        - id
+        - name
+        - phoneNumber
+        - highResolution
+
+    RegisterCameraRequest:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+          description: Phone number for the camera's 5G connection
+          example: "+15551234567"
+        name:
+          type: string
+          description: Optional friendly name for the camera
+          example: "Entrance Camera A"
+        location:
+          $ref: '#/components/schemas/Location'
+      required:
+        - phoneNumber
+
+    Location:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        description:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      example:
+        code: 404
+        message: "Camera not found"
+
+tags:
+  - name: cameras
+    description: Camera management endpoints
