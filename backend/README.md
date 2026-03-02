@@ -2,31 +2,43 @@
 
 This is a Python backend that implements the API for managing cameras connected to the backend (5G-connected devices).
 
-## Prerequisites
+## Run with Docker (recommended)
 
-* Docker and Docker Compose
-* Python 3.8+
+From the `backend/` directory:
 
-## Setup
+```bash
+docker compose up --build
+```
 
-1.  **Clone the repository**
+This will start:
 
-2.  **Create a virtual environment and install dependencies**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    ```
+- `mongo` on `mongodb://mongo:27017/`
+- `backend` on `http://localhost:3000`
 
-3.  **Start the MongoDB database**
-    ```bash
-    docker-compose up -d
-    ```
+The FastAPI docs will be at `http://localhost:3000/docs`.
 
-4.  **Run the application**
-    ```bash
-    uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
-    ```
+## Run locally without Docker
+
+1. **Create a virtual environment and install dependencies**
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. **Start MongoDB locally** (e.g. via Docker)
+
+```bash
+docker run -d --name mongo -p 27017:27017 mongo:7
+```
+
+3. **Run the application**
+
+```bash
+export MONGO_URL=mongodb://localhost:27017/
+uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
+```
 
 The API will be available at `http://localhost:3000`. You can access the OpenAPI documentation at `http://localhost:3000/docs`.
 

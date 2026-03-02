@@ -1,9 +1,11 @@
+import os
+
 from pymongo import MongoClient
 from pymongo.collection import Collection
-from bson import ObjectId
 
 # Simple in-memory cache for the client
 _client = None
+
 
 def get_db() -> Collection:
     """
@@ -11,11 +13,13 @@ def get_db() -> Collection:
     """
     global _client
     if _client is None:
-        _client = MongoClient('mongodb://localhost:27017/')
-    
-    db = _client['dashboard_cameras']
+        mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017/")
+        _client = MongoClient(mongo_url)
+
+    db = _client["dashboard_cameras"]
     return db.cameras
 
+
 def to_camera_dict(camera):
-    camera['_id'] = str(camera['_id'])
+    camera["_id"] = str(camera["_id"])
     return camera
