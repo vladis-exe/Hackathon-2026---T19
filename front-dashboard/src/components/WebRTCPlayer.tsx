@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import { FocusArea, StreamingMode } from "@/types/camera";
 import { useCategoriesContext } from "@/components/CategoriesContext";
+import { useCamerasContext } from "@/components/CamerasContext";
 
 interface WebRTCPlayerProps {
     cameraId?: string;
@@ -14,6 +15,7 @@ interface WebRTCPlayerProps {
 
 export function WebRTCPlayer({ cameraId, signalingUrl, streamingMode, focusArea }: WebRTCPlayerProps) {
     const { categories } = useCategoriesContext();
+    const { reportBandwidth } = useCamerasContext();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const vContextRef = useRef<HTMLVideoElement>(null);
     const vSourceRef = useRef<HTMLVideoElement>(null);
@@ -134,8 +136,42 @@ export function WebRTCPlayer({ cameraId, signalingUrl, streamingMode, focusArea 
 
         startStream();
 
+        // Bandwidth Stats Polling
+        let lastBytesReceived = 0;
+        let lastStatsTimestamp = 0;
+
+        const statsInterval = setInterval(async () => {
+            if (!pc || pc.connectionState !== "connected") return;
+
+            try {
+                const stats = await pc.getStats();
+                let bytesReceived = 0;
+
+                stats.forEach(report => {
+                    if (report.type === "inbound-rtp" && report.kind === "video") {
+                        bytesReceived += (report.bytesReceived || 0);
+                    }
+                });
+
+                const now = performance.now();
+                if (lastStatsTimestamp > 0 && bytesReceived > lastBytesReceived) {
+                    const deltaBytes = bytesReceived - lastBytesReceived;
+                    const deltaTimeMs = now - lastStatsTimestamp;
+                    // kbps = (bytes * 8) / (ms / 1000) / 1000 = bytes * 8 / ms
+                    const kbps = Math.round((deltaBytes * 8) / deltaTimeMs);
+                    if (cameraId) reportBandwidth(cameraId, kbps);
+                }
+
+                lastBytesReceived = bytesReceived;
+                lastStatsTimestamp = now;
+            } catch (e) {
+                console.warn("[WebRTC] Stats collection failed:", e);
+            }
+        }, 2000);
+
         return () => {
             isActive = false;
+            clearInterval(statsInterval);
             dataChannelRef.current = null;
             if (pc) pc.close();
         };

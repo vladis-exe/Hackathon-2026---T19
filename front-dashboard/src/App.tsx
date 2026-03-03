@@ -8,6 +8,7 @@ import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatPanel } from "@/components/ChatPanel";
 import { CategoriesProvider } from "@/components/CategoriesContext";
+import { CamerasProvider } from "@/components/CamerasContext";
 import Index from "./pages/Index";
 import CameraDetail from "./pages/CameraDetail";
 import NotFound from "./pages/NotFound";
@@ -37,23 +38,25 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => (
-  <CategoriesProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppLayout>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/camera/:id" element={<CameraDetail />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AppLayout>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </CategoriesProvider>
+  <CamerasProvider>
+    <CategoriesProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppLayout>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/camera/:id" element={<CameraDetail />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AppLayout>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </CategoriesProvider>
+  </CamerasProvider>
 );
 
 export default App;
