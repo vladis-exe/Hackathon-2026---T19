@@ -22,16 +22,12 @@ export function CameraCard({ camera, onToggleSmartFocus, onSelect }: CameraCardP
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "group relative cursor-pointer rounded-lg border border-border bg-card transition-all duration-300 hover:border-primary/40 hover:shadow-lg",
+        "group relative rounded-lg border border-border bg-card transition-all duration-300 hover:border-primary/40 hover:shadow-lg",
         camera.smartFocusEnabled && camera.online && "border-primary/30 animate-pulse-glow"
       )}
-      onClick={() => onSelect(camera)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && onSelect(camera)}
     >
-      {/* Video Preview Placeholder */}
-      <div className="relative aspect-video overflow-hidden rounded-t-lg bg-secondary">
+      {/* Video preview — not clickable so focus-area selection can be used here without opening full view */}
+      <div className="relative aspect-video overflow-hidden rounded-t-lg bg-secondary cursor-default">
         <div
           className={cn(
             "flex h-full w-full items-center justify-center",
@@ -66,8 +62,15 @@ export function CameraCard({ camera, onToggleSmartFocus, onSelect }: CameraCardP
         )}
       </div>
 
-      {/* Card Body */}
-      <div className="space-y-3 p-3">
+      {/* Card body — click here to open full view (area outside video) */}
+      <div
+        className="space-y-3 p-3 cursor-pointer"
+        onClick={() => onSelect(camera)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === "Enter" && onSelect(camera)}
+        aria-label={`Open ${camera.name} details`}
+      >
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-sm font-semibold">{camera.name}</h3>

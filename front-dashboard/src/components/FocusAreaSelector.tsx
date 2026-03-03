@@ -7,8 +7,10 @@ interface FocusAreaSelectorProps {
   onFocusAreaChange: (area: FocusArea | undefined) => void;
   disabled?: boolean;
   className?: string;
-  /** Video URL for the live feed (e.g. /api/test-video or future WebRTC). Selection is drawn over this. */
+  /** Video URL for the live feed. Ignored when liveFeedNode is provided. */
   streamUrl?: string | null;
+  /** When provided, renders this as the live feed (e.g. WebRTC player) instead of streamUrl. */
+  liveFeedNode?: React.ReactNode;
 }
 
 export function FocusAreaSelector({
@@ -17,6 +19,7 @@ export function FocusAreaSelector({
   disabled,
   className,
   streamUrl,
+  liveFeedNode,
 }: FocusAreaSelectorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [drawing, setDrawing] = useState(false);
@@ -80,7 +83,11 @@ export function FocusAreaSelector({
       onMouseLeave={() => drawing && handleMouseUp()}
     >
       {/* Live video or placeholder */}
-      {streamUrl ? (
+      {liveFeedNode ? (
+        <div className="absolute inset-0 pointer-events-none">
+          {liveFeedNode}
+        </div>
+      ) : streamUrl ? (
         <video
           className="absolute inset-0 h-full w-full object-cover"
           src={streamUrl}
@@ -99,7 +106,7 @@ export function FocusAreaSelector({
       )}
 
       {/* Grid overlay (subtle; more visible on hover when video present) */}
-      <div className={cn("absolute inset-0", streamUrl ? "opacity-0 hover:opacity-10 transition-opacity" : "opacity-10")}>
+      <div className={cn("absolute inset-0", (streamUrl || liveFeedNode) ? "opacity-0 hover:opacity-10 transition-opacity" : "opacity-10")}>
         <svg className="h-full w-full">
           <defs>
             <pattern id="grid-focus" width="10%" height="10%" patternUnits="objectBoundingBox">
@@ -110,30 +117,28 @@ export function FocusAreaSelector({
         </svg>
       </div>
 
-      {/* Focus area rectangle — while drawing or persisted outline */}
-      {(displayArea || (!drawing && focusArea)) && (
+      {/* Focus area rectangle — only visible while drawing; disappears on release, reappears on next drag */}
+      {displayArea && (
         <>
-          {drawing && displayArea && <div className="absolute inset-0 bg-background/60" />}
+          <div className="absolute inset-0 bg-background/60" />
           <div
             className="absolute border-2 border-primary bg-transparent shadow-[0_0_20px_hsl(174_72%_50%/0.3)]"
             style={{
-              left: `${(displayArea || focusArea)!.x}%`,
-              top: `${(displayArea || focusArea)!.y}%`,
-              width: `${(displayArea || focusArea)!.width}%`,
-              height: `${(displayArea || focusArea)!.height}%`,
+              left: `${displayArea.x}%`,
+              top: `${displayArea.y}%`,
+              width: `${displayArea.width}%`,
+              height: `${displayArea.height}%`,
             }}
           >
             <div className="absolute -left-1 -top-1 h-2 w-2 rounded-full bg-primary" />
             <div className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" />
             <div className="absolute -bottom-1 -left-1 h-2 w-2 rounded-full bg-primary" />
             <div className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-primary" />
-            {drawing && displayArea && (
-              <div className="absolute -top-6 left-0">
-                <span className="text-data text-[10px] text-primary">
-                  FOCUS ZONE ({Math.round(displayArea.width)}% × {Math.round(displayArea.height)}%)
-                </span>
-              </div>
-            )}
+            <div className="absolute -top-6 left-0">
+              <span className="text-data text-[10px] text-primary">
+                FOCUS ZONE ({Math.round(displayArea.width)}% × {Math.round(displayArea.height)}%)
+              </span>
+            </div>
           </div>
         </>
       )}

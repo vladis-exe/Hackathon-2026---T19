@@ -57,8 +57,8 @@ function mapBackendCameraToUi(cam: BackendCamera, index: number): Camera {
       { timestamp: "now", message: "Camera registered from backend" },
       ...(cam.highResolution ? [{ timestamp: "now", message: "High resolution enabled" }] : []),
     ],
-    // For now, all cameras point to the same test video endpoint.
-    streamUrl: "/api/test-video",
+    // Real stream is shown via WebRTC (liveFeedNode); no test video default.
+    streamUrl: undefined,
     focusArea: cam.focusArea ?? undefined,
   };
 }

@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useCameras } from "@/hooks/useCameras";
 import { FocusAreaSelector } from "@/components/FocusAreaSelector";
+import { WebRTCPlayer } from "@/components/WebRTCPlayer";
 import { BandwidthSparkline } from "@/components/BandwidthSparkline";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Switch } from "@/components/ui/switch";
@@ -84,7 +85,8 @@ export default function CameraDetail() {
               <div className="relative">
                 <FocusAreaSelector
                   className="w-full"
-                  streamUrl={camera.online ? (camera.streamUrl || "/api/test-video") : undefined}
+                  streamUrl={undefined}
+                  liveFeedNode={camera.online ? <WebRTCPlayer cameraId={camera.id} /> : undefined}
                   focusArea={camera.focusArea}
                   onFocusAreaChange={(area) => setFocusArea(camera.id, area)}
                   disabled={!camera.online}
