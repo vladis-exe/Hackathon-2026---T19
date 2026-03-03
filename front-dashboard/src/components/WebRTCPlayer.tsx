@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FocusArea, StreamingMode } from "@/types/camera";
+import { useCategoriesContext } from "@/components/CategoriesContext";
 
 interface WebRTCPlayerProps {
     cameraId?: string;
@@ -12,6 +13,7 @@ interface WebRTCPlayerProps {
 }
 
 export function WebRTCPlayer({ cameraId, signalingUrl, streamingMode, focusArea }: WebRTCPlayerProps) {
+    const { categories } = useCategoriesContext();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const vContextRef = useRef<HTMLVideoElement>(null);
     const vSourceRef = useRef<HTMLVideoElement>(null);
@@ -287,6 +289,10 @@ export function WebRTCPlayer({ cameraId, signalingUrl, streamingMode, focusArea 
         dc.send(JSON.stringify(cmd));
         console.log("[WebRTC] Sent command via DataChannel:", cmd);
     };
+
+    useEffect(() => {
+        dataChannelRef.current?.send(JSON.stringify({ classes: categories }));
+    }, [categories]);
 
     useEffect(() => {
         if (dataChannelRef.current) sendCurrentConfig(dataChannelRef.current);

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { MessageCircle, Send, PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useCategoriesContext } from "@/components/CategoriesContext";
 
 interface ChatMessage {
   id: string;
@@ -17,6 +18,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ open, onClose }: ChatPanelProps) {
+  const { setCategories } = useCategoriesContext();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
@@ -72,6 +74,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
           categories: message.categories,
         },
       ]);
+      setCategories(message.categories);
     } catch (e) {
       console.error(e);
 
