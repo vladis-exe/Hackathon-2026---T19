@@ -21,6 +21,7 @@ type BackendCamera = {
     longitude?: number | null;
     description?: string | null;
   } | null;
+  focusArea?: { x: number; y: number; width: number; height: number } | null;
 };
 
 function mapBackendCameraToUi(cam: BackendCamera, index: number): Camera {
@@ -58,6 +59,7 @@ function mapBackendCameraToUi(cam: BackendCamera, index: number): Camera {
     ],
     // For now, all cameras point to the same test video endpoint.
     streamUrl: "/api/test-video",
+    focusArea: cam.focusArea ?? undefined,
   };
 }
 
@@ -99,4 +101,23 @@ export async function requestQod(
   // Placeholder: will later call a dedicated QoD endpoint.
   console.log(`[API] requestQod (stub): ${cameraId} → ${level}`);
   return { success: true };
+}
+
+export async function setFocusArea(
+  cameraId: string,
+  area: { x: number; y: number; width: number; height: number }
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/dashboard/cameras/${encodeURIComponent(cameraId)}/focus-area`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(area),
+  });
+  if (!res.ok) throw new Error(`Failed to set focus area: ${res.status}`);
+}
+
+export async function clearFocusArea(cameraId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/dashboard/cameras/${encodeURIComponent(cameraId)}/focus-area`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Failed to clear focus area: ${res.status}`);
 }

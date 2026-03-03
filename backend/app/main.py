@@ -11,7 +11,7 @@ from google.genai.types import HttpOptions
 import json
 
 from . import database as db
-from .models import Camera, RegisterCameraRequest, Error, GeminiPromptRequest, SetAreaRequest
+from .models import Camera, CameraOut, RegisterCameraRequest, Error, GeminiPromptRequest, SetAreaRequest, FocusAreaRequest
 
 load_dotenv()
 
@@ -29,7 +29,7 @@ def read_root():
     return {"message": "Welcome to the Dashboard Cameras API"}
 
 
-@api_app.get("/api/dashboard/cameras", response_model=List[Camera], tags=["cameras"])
+@api_app.get("/api/dashboard/cameras", response_model=List[CameraOut], tags=["cameras"])
 def list_cameras():
     """
     Get list of cameras
@@ -39,7 +39,7 @@ def list_cameras():
 
 @api_app.get(
     "/api/dashboard/camera/{id}",
-    response_model=Camera,
+    response_model=CameraOut,
     tags=["cameras"],
     responses={404: {"model": Error}},
 )
@@ -58,7 +58,7 @@ def get_camera_by_id(id: str = Path(..., description="Camera id (UUID or interna
 
 @api_app.post(
     "/api/dashboard/cameras/{cameraId}/set_highres/{value}",
-    response_model=Camera,
+    response_model=CameraOut,
     tags=["cameras"],
     responses={400: {"model": Error}, 404: {"model": Error}},
 )
@@ -83,7 +83,7 @@ async def set_high_res(cameraId: str = Path(..., description="Camera id"), value
         
     raise HTTPException(status_code=404, detail="Camera not found")
 
-@api_app.post("/api/dashboard/cameras/{cameraId}/set_area", response_model=Camera, tags=["cameras"], responses={400: {"model": Error}, 404: {"model": Error}})
+@api_app.post("/api/dashboard/cameras/{cameraId}/set_area", response_model=CameraOut, tags=["cameras"], responses={400: {"model": Error}, 404: {"model": Error}})
 async def set_camera_area(req: SetAreaRequest, cameraId: str = Path(..., description="Camera id")):
     """
     Select an area in a camera feed
@@ -144,7 +144,7 @@ def get_camera_highres(cameraId: str = Path(..., description="Camera id")):
 
 @api_app.post(
     "/api/dashboard/cameras/register",
-    response_model=Camera,
+    response_model=CameraOut,
     status_code=201,
     tags=["cameras"],
     responses={400: {"model": Error}},
@@ -201,6 +201,57 @@ async def call_gemini_api(
     await sio.emit("categories", active_categories)
     
     return data
+
+@api_app.put(
+    "/api/dashboard/cameras/{cameraId}/focus-area",
+    response_model=CameraOut,
+    tags=["cameras"],
+    responses={400: {"model": Error}, 404: {"model": Error}},
+)
+def set_camera_focus_area(
+    cameraId: str = Path(..., description="Camera id"),
+    body: FocusAreaRequest = ...,
+):
+    """
+    Set the focus area for this camera (percentages 0–100).
+    The backend will use this region for target finding and keep full quality there;
+    the rest of the frame can be reduced in quality/bandwidth.
+    """
+    from bson import ObjectId
+    if not ObjectId.is_valid(cameraId):
+        raise HTTPException(status_code=400, detail="Invalid camera ID format.")
+
+    focus_area = {"x": body.x, "y": body.y, "width": body.width, "height": body.height}
+    camera = db.get_db().find_one_and_update(
+        {"_id": ObjectId(cameraId)},
+        {"$set": {"focusArea": focus_area}},
+        return_document=True,
+    )
+    if camera:
+        return db.to_camera_dict(camera)
+    raise HTTPException(status_code=404, detail="Camera not found")
+
+
+@api_app.delete(
+    "/api/dashboard/cameras/{cameraId}/focus-area",
+    response_model=CameraOut,
+    tags=["cameras"],
+    responses={404: {"model": Error}},
+)
+def clear_camera_focus_area(cameraId: str = Path(..., description="Camera id")):
+    """Clear the focus area for this camera."""
+    from bson import ObjectId
+    if not ObjectId.is_valid(cameraId):
+        raise HTTPException(status_code=400, detail="Invalid camera ID format.")
+
+    camera = db.get_db().find_one_and_update(
+        {"_id": ObjectId(cameraId)},
+        {"$unset": {"focusArea": ""}},
+        return_document=True,
+    )
+    if camera:
+        return db.to_camera_dict(camera)
+    raise HTTPException(status_code=404, detail="Camera not found")
 
 # Simple test video endpoint serving the bundled MP4 file so the frontend
 # can render a live-like preview without a real camera connected yet.

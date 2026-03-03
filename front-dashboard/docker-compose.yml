@@ -9,5 +9,11 @@ services:
       - /app/node_modules
     ports:
       - "8080:8080"
+    environment:
+      # So the dev-server proxy can reach the backend on the host (Mac/Windows use host.docker.internal)
+      - VITE_PROXY_TARGET=http://host.docker.internal:3300
+    extra_hosts:
+      # Linux: host.docker.internal is not set by default
+      - "host.docker.internal:host-gateway"
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 8080"
 

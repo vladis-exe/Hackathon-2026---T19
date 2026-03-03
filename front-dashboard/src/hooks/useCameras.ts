@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Camera, FocusArea } from "@/types/camera";
-import { fetchCameras as fetchCamerasFromApi, toggleSmartFocus as toggleSmartFocusApi } from "@/services/api";
+import { fetchCameras as fetchCamerasFromApi, toggleSmartFocus as toggleSmartFocusApi, setFocusArea as setFocusAreaApi, clearFocusArea as clearFocusAreaApi } from "@/services/api";
 
 const MOCK_CAMERAS: Camera[] = [
   {
@@ -212,6 +212,15 @@ export function useCameras() {
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           message: area ? "Focus area updated" : "Focus area cleared",
         };
+        if (area) {
+          setFocusAreaApi(cameraId, area).catch((err) =>
+            console.warn("Failed to persist focus area:", err)
+          );
+        } else {
+          clearFocusAreaApi(cameraId).catch((err) =>
+            console.warn("Failed to clear focus area:", err)
+          );
+        }
         return { ...cam, focusArea: area, events: [...cam.events, newEvent] };
       })
     );

@@ -7,6 +7,8 @@ interface FocusAreaSelectorProps {
   onFocusAreaChange: (area: FocusArea | undefined) => void;
   disabled?: boolean;
   className?: string;
+  /** Video URL for the live feed (e.g. /api/test-video or future WebRTC). Selection is drawn over this. */
+  streamUrl?: string | null;
 }
 
 export function FocusAreaSelector({
@@ -14,6 +16,7 @@ export function FocusAreaSelector({
   onFocusAreaChange,
   disabled,
   className,
+  streamUrl,
 }: FocusAreaSelectorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [drawing, setDrawing] = useState(false);
@@ -76,56 +79,82 @@ export function FocusAreaSelector({
       onMouseUp={handleMouseUp}
       onMouseLeave={() => drawing && handleMouseUp()}
     >
-      {/* Video placeholder background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted" />
+      {/* Live video or placeholder */}
+      {streamUrl ? (
+        <video
+          className="absolute inset-0 h-full w-full object-cover"
+          src={streamUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      ) : (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xs text-muted-foreground/40 uppercase tracking-widest">Live Feed</span>
+          </div>
+        </>
+      )}
 
-      {/* Grid overlay */}
-      <div className="absolute inset-0 opacity-10">
+      {/* Grid overlay (subtle; more visible on hover when video present) */}
+      <div className={cn("absolute inset-0", streamUrl ? "opacity-0 hover:opacity-10 transition-opacity" : "opacity-10")}>
         <svg className="h-full w-full">
           <defs>
-            <pattern id="grid" width="10%" height="10%" patternUnits="objectBoundingBox">
+            <pattern id="grid-focus" width="10%" height="10%" patternUnits="objectBoundingBox">
               <path d="M 100 0 L 0 0 0 100" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-muted-foreground" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
+          <rect width="100%" height="100%" fill="url(#grid-focus)" />
         </svg>
       </div>
 
-      {/* Simulated video content */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs text-muted-foreground/40 uppercase tracking-widest">Live Feed</span>
-      </div>
-
-      {/* Focus area rectangle — only while drawing */}
-      {displayArea && (
+      {/* Focus area rectangle — while drawing or persisted outline */}
+      {(displayArea || (!drawing && focusArea)) && (
         <>
-          <div className="absolute inset-0 bg-background/60" />
+          {drawing && displayArea && <div className="absolute inset-0 bg-background/60" />}
           <div
             className="absolute border-2 border-primary bg-transparent shadow-[0_0_20px_hsl(174_72%_50%/0.3)]"
             style={{
-              left: `${displayArea.x}%`,
-              top: `${displayArea.y}%`,
-              width: `${displayArea.width}%`,
-              height: `${displayArea.height}%`,
+              left: `${(displayArea || focusArea)!.x}%`,
+              top: `${(displayArea || focusArea)!.y}%`,
+              width: `${(displayArea || focusArea)!.width}%`,
+              height: `${(displayArea || focusArea)!.height}%`,
             }}
           >
             <div className="absolute -left-1 -top-1 h-2 w-2 rounded-full bg-primary" />
             <div className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" />
             <div className="absolute -bottom-1 -left-1 h-2 w-2 rounded-full bg-primary" />
             <div className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-primary" />
-            <div className="absolute -top-6 left-0">
-              <span className="text-data text-[10px] text-primary">
-                FOCUS ZONE ({Math.round(displayArea.width)}% × {Math.round(displayArea.height)}%)
-              </span>
-            </div>
+            {drawing && displayArea && (
+              <div className="absolute -top-6 left-0">
+                <span className="text-data text-[10px] text-primary">
+                  FOCUS ZONE ({Math.round(displayArea.width)}% × {Math.round(displayArea.height)}%)
+                </span>
+              </div>
+            )}
           </div>
         </>
       )}
 
       {/* Subtle indicator when a focus area is set (but not drawing) */}
       {!drawing && focusArea && (
-        <div className="absolute bottom-2 left-2 rounded-md bg-primary/10 border border-primary/30 px-2 py-1 text-[10px] text-primary backdrop-blur-sm">
-          Focus area set — drag to redefine
+        <div className="absolute bottom-2 left-2 flex items-center gap-2">
+          <span className="rounded-md bg-primary/10 border border-primary/30 px-2 py-1 text-[10px] text-primary backdrop-blur-sm">
+            Focus area set — drag to redefine
+          </span>
+          <button
+            type="button"
+            className="rounded-md bg-destructive/20 border border-destructive/40 px-2 py-1 text-[10px] text-destructive hover:bg-destructive/30 backdrop-blur-sm"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onFocusAreaChange(undefined);
+            }}
+          >
+            Clear
+          </button>
         </div>
       )}
 

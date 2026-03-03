@@ -84,6 +84,7 @@ export default function CameraDetail() {
               <div className="relative">
                 <FocusAreaSelector
                   className="w-full"
+                  streamUrl={camera.online ? (camera.streamUrl || "/api/test-video") : undefined}
                   focusArea={camera.focusArea}
                   onFocusAreaChange={(area) => setFocusArea(camera.id, area)}
                   disabled={!camera.online}
