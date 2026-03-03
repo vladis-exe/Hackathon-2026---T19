@@ -37,10 +37,18 @@ export function CameraDetailDrawer({ camera, open, onClose }: CameraDetailDrawer
                 camera.online ? "bg-gradient-to-br from-secondary to-muted" : "bg-muted/50"
               )}
             >
-              {camera.online ? (
+              {camera.online && camera.signalingUrl ? (
                 <div className="flex h-full w-full overflow-hidden relative items-center justify-center">
-                  <WebRTCPlayer cameraId={camera.id} />
+                  <WebRTCPlayer
+                    cameraId={camera.id}
+                    signalingUrl={camera.signalingUrl}
+                    streamingMode={camera.streamingMode}
+                    smartFocusEnabled={camera.smartFocusEnabled}
+                    focusArea={camera.focusArea}
+                  />
                 </div>
+              ) : camera.online ? (
+                <span className="text-sm text-muted-foreground/60">No signaling URL</span>
               ) : (
                 <span className="text-sm text-muted-foreground/40">CAMERA OFFLINE</span>
               )}

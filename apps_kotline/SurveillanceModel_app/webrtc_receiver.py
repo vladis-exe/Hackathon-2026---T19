@@ -7,7 +7,7 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, MediaStreamError
 from aiortc.contrib.media import MediaRelay
 
 # --- CONFIGURATION ---
-ANDROID_IP = "10.35.218.9"
+ANDROID_IP = "10.188.226.29"
 SIGNALING_URL = f"http://{ANDROID_IP}:8888"
 DISP_WIDTH = 1920
 DISP_HEIGHT = 1080
@@ -59,10 +59,11 @@ class WebRtcReceiver:
                     self.connected = True
                     return True
                 else:
-                    print(f"Signaling failed: {response.status_code}")
+                    print(f"Signaling failed: Received HTTP {response.status_code} from {SIGNALING_URL}")
+            except httpx.ConnectError:
+                print(f"Signaling error: Could not connect to {SIGNALING_URL}. Is the Android app running and on the same network?")
             except Exception as e:
-                # Silent during polling
-                pass
+                print(f"Signaling error to {SIGNALING_URL}: {type(e).__name__}: {e}")
         return False
 
     def send_command(self, cmd):
@@ -246,11 +247,11 @@ class WebRtcReceiver:
                     else:
                         self.source_frame = img
             except MediaStreamError as e:
-                print(f"Track {track_id} error: {e}")
-                self.connected = False # Trigger reconnect
+                print(f"Track {track_id} stream error (connection lost?): {e}")
+                self.connected = False 
                 break
             except Exception as e:
-                print(f"Track error on {track_id}: {e}")
+                print(f"Track error on {track_id}: {type(e).__name__}: {e}")
                 self.connected = False
                 break
 

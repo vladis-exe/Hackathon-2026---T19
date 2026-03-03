@@ -35,6 +35,8 @@ export default function CameraDetail() {
   }
 
   const mbps = (camera.bandwidthKbps / 1000).toFixed(1);
+  const hasSignalingUrl = !!camera.signalingUrl && camera.signalingUrl.trim().length > 0;
+  const signalingLooksLegacy = hasSignalingUrl && camera.signalingUrl?.includes(":8080");
 
   const handleToggle = () => {
     toggleSmartFocus(camera.id);
@@ -86,7 +88,7 @@ export default function CameraDetail() {
                 <FocusAreaSelector
                   className="w-full"
                   streamUrl={undefined}
-                  liveFeedNode={camera.online ? <WebRTCPlayer
+                  liveFeedNode={camera.online && hasSignalingUrl ? <WebRTCPlayer
                     cameraId={camera.id}
                     signalingUrl={camera.signalingUrl}
                     streamingMode={camera.streamingMode}
@@ -97,6 +99,18 @@ export default function CameraDetail() {
                   onFocusAreaChange={(area) => setFocusArea(camera.id, area)}
                   disabled={!camera.online || camera.streamingMode !== "HYBRID"}
                 />
+                {camera.online && !hasSignalingUrl && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="rounded-md border border-white/10 bg-black/60 px-3 py-2 text-[10px] uppercase tracking-wider text-white/80">
+                      No signaling URL set (expected `http://&lt;device-ip&gt;:8888`)
+                    </div>
+                  </div>
+                )}
+                {camera.online && hasSignalingUrl && signalingLooksLegacy && (
+                  <div className="absolute bottom-3 left-3 rounded-md bg-amber-500/10 border border-amber-500/30 px-2 py-1 text-[10px] text-amber-200 backdrop-blur-sm uppercase tracking-wider">
+                    Signaling URL looks legacy (`:8080`) — WebRTC uses `:8888`
+                  </div>
+                )}
                 {/* Overlay badges */}
                 <div className="absolute left-3 top-3 flex gap-2">
                   {/* Removed StatusBadge for Mode */}

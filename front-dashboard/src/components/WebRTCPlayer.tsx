@@ -177,41 +177,75 @@ export function WebRTCPlayer({ cameraId, signalingUrl, streamingMode, focusArea 
             ctx.fillStyle = "#000";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Base Layer
+            // Draw Base Layer (low-res context)
             if (contextFeed && contextFeed.videoWidth > 0) {
                 ctx.drawImage(contextFeed, 0, 0, canvas.width, canvas.height);
             }
 
-            // High-Res Overlay with Feathering (HYBRID Mode)
-            if (sourceFeed && sourceFeed.videoWidth > 0 && (streamingMode === "HIGH" || streamingMode === "HYBRID")) {
+            // High-Res Overlay with Feathering
+            // - In HIGH mode: full-frame high-res replaces context.
+            // - In VISION / HYBRID: behave like Python webrtc_receiver.py and
+            //   alpha-blend non-black high-res regions over the low-res context.
+            if (sourceFeed && sourceFeed.videoWidth > 0 && streamingMode !== "LOW") {
                 if (streamingMode === "HIGH") {
                     ctx.drawImage(sourceFeed, 0, 0, canvas.width, canvas.height);
-                } else if (streamingMode === "HYBRID") {
+                } else {
                     const mCtx = maskCanvas.getContext("2d");
                     const bCtx = blurCanvas.getContext("2d");
 
                     if (mCtx && bCtx) {
-                        // 1. Create Threshold Mask
+                        // 1. Create Threshold Mask (brightness > ~18, like OpenCV code)
                         mCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
                         mCtx.drawImage(sourceFeed, 0, 0, maskCanvas.width, maskCanvas.height);
+                        const frame = mCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+                        const data = frame.data;
+                        // Hard binary mask (like bin_mask in Python)
+                        for (let i = 0; i < data.length; i += 4) {
+                            const r = data[i];
+                            const g = data[i + 1];
+                            const b = data[i + 2];
+                            // Luma approximation (0–255), same threshold ~18
+                            const gray = (r * 299 + g * 587 + b * 114) / 1000;
+                            if (gray > 18) {
+                                // Inside ROI: solid white, full alpha
+                                data[i] = 255;
+                                data[i + 1] = 255;
+                                data[i + 2] = 255;
+                                data[i + 3] = 255;
+                            } else {
+                                // Outside ROI: fully transparent
+                                data[i + 3] = 0;
+                            }
+                        }
+                        mCtx.putImageData(frame, 0, 0);
 
-                        // Simple thresholding via 'difference' and 'lighten' or just pixel manipulation
-                        // For performance in JS, we use a CSS filter on the intermediate canvas
-                        mCtx.globalCompositeOperation = "source-in";
-                        mCtx.fillStyle = "white";
-                        mCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-
-                        // 2. Feather the mask using Blur
+                        // 2. Feather the mask using Blur (match ~31px kernel in Python)
                         bCtx.clearRect(0, 0, blurCanvas.width, blurCanvas.height);
-                        bCtx.filter = "blur(12px)";
+                        bCtx.filter = "blur(31px)";
                         bCtx.drawImage(maskCanvas, 0, 0);
                         bCtx.filter = "none";
 
-                        // 3. Draw Source through the Feathered Mask
-                        // Save the main context state
-                        ctx.save();
+                        // 3b. Cut off blur bleeding into the black background (bitwise_and with hard mask)
+                        // This mirrors: feathered_alpha = cv2.bitwise_and(feathered_alpha, bin_mask)
+                        const blurred = bCtx.getImageData(0, 0, blurCanvas.width, blurCanvas.height);
+                        const blurData = blurred.data;
+                        for (let i = 0; i < blurData.length; i += 4) {
+                            const hardAlpha = data[i + 3];
+                            let a = blurData[i + 3];
+                            if (hardAlpha === 0) {
+                                // Outside original ROI, force alpha to 0 to avoid shadows.
+                                blurData[i + 3] = 0;
+                            } else if (a > 0) {
+                                // Soften the transition using a simple gamma curve so edges are smoother
+                                const t = a / 255;
+                                const softened = Math.sqrt(t); // gamma 0.5
+                                blurData[i + 3] = Math.max(0, Math.min(255, softened * 255));
+                            }
+                        }
+                        bCtx.putImageData(blurred, 0, 0);
 
-                        // Create a temporary pattern/mask effect
+                        // 4. Draw Source through the Feathered Mask
+                        ctx.save();
                         const tempCanvas = document.createElement("canvas");
                         tempCanvas.width = canvas.width;
                         tempCanvas.height = canvas.height;
@@ -220,11 +254,8 @@ export function WebRTCPlayer({ cameraId, signalingUrl, streamingMode, focusArea 
                             tCtx.drawImage(sourceFeed, 0, 0, canvas.width, canvas.height);
                             tCtx.globalCompositeOperation = "destination-in";
                             tCtx.drawImage(blurCanvas, 0, 0, canvas.width, canvas.height);
-
-                            // Blend the result onto main canvas
                             ctx.drawImage(tempCanvas, 0, 0);
                         }
-
                         ctx.restore();
                     }
                 }
@@ -243,12 +274,15 @@ export function WebRTCPlayer({ cameraId, signalingUrl, streamingMode, focusArea 
 
     const sendCurrentConfig = (dc: RTCDataChannel) => {
         if (dc.readyState !== "open") return;
+        // Android StreamerManager expects hybrid_rect in 0–100 percentage space.
         const cmd = {
             mode: streamingMode,
             hybrid_rect: streamingMode === "HYBRID" && focusArea ? {
-                x1: focusArea.x / 100, y1: focusArea.y / 100,
-                x2: (focusArea.x + focusArea.width) / 100, y2: (focusArea.y + focusArea.height) / 100
-            } : undefined
+                x1: focusArea.x,
+                y1: focusArea.y,
+                x2: focusArea.x + focusArea.width,
+                y2: focusArea.y + focusArea.height,
+            } : undefined,
         };
         dc.send(JSON.stringify(cmd));
         console.log("[WebRTC] Sent command via DataChannel:", cmd);

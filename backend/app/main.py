@@ -122,12 +122,42 @@ async def proxy_sdp_offer(
     signaling_url = camera["signalingUrl"]
     offer_sdp = await request.body()
     
-    print(f"Proxying SDP offer to {signaling_url} ({len(offer_sdp)} bytes)")
+    from urllib.parse import urlparse, urlunparse
+
+    def normalize_signaling_url(raw: str) -> str:
+        url_str = (raw or "").strip()
+        if "://" not in url_str:
+            url_str = f"http://{url_str}"
+        parsed = urlparse(url_str)
+        if not parsed.hostname:
+            return raw
+        port = parsed.port
+        if port is None:
+            port = 8888
+        elif port == 8080:
+            port = 8888
+        netloc = f"{parsed.hostname}:{port}"
+        if parsed.username or parsed.password:
+            auth = parsed.username or ""
+            if parsed.password:
+                auth = f"{auth}:{parsed.password}"
+            netloc = f"{auth}@{netloc}"
+        return urlunparse((parsed.scheme or "http", netloc, parsed.path or "", parsed.params or "", parsed.query or "", parsed.fragment or ""))
+
+    def with_port(url: str, port: int) -> str:
+        parsed = urlparse(url)
+        if not parsed.hostname:
+            return url
+        netloc = f"{parsed.hostname}:{port}"
+        return urlunparse((parsed.scheme or "http", netloc, parsed.path or "", parsed.params or "", parsed.query or "", parsed.fragment or ""))
+
+    normalized_url = normalize_signaling_url(signaling_url)
+    print(f"Proxying SDP offer to {normalized_url} ({len(offer_sdp)} bytes)")
     
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             # The Android signaling server expects a POST with raw SDP text
-            response = await client.post(signaling_url, content=offer_sdp)
+            response = await client.post(normalized_url, content=offer_sdp)
             print(f"Signaling response: {response.status_code}")
             if response.status_code == 200:
                 return PlainTextResponse(content=response.text, status_code=200)
@@ -135,6 +165,25 @@ async def proxy_sdp_offer(
                 # If the camera signaling server returns a non-200 status,
                 # return its response text and status code directly.
                 return PlainTextResponse(content=response.text, status_code=response.status_code)
+        except httpx.ConnectError:
+            # Backward-compatible fallback: if a camera was registered with the old :8080
+            # stream endpoint, retry on the WebRTC signaling port.
+            retry_url = with_port(normalized_url, 8888)
+            if retry_url != normalized_url:
+                try:
+                    print(f"Retrying SDP proxy on {retry_url}")
+                    response = await client.post(retry_url, content=offer_sdp)
+                    print(f"Signaling response (retry): {response.status_code}")
+                    if response.status_code == 200:
+                        return PlainTextResponse(content=response.text, status_code=200)
+                    return PlainTextResponse(content=response.text, status_code=response.status_code)
+                except Exception as e:
+                    detail = f"Signaling error: {str(e)}"
+                    print(detail)
+                    raise HTTPException(status_code=500, detail=detail)
+            detail = "Signaling error: All connection attempts failed"
+            print(detail)
+            raise HTTPException(status_code=500, detail=detail)
         except Exception as e:
             detail = f"Signaling error: {str(e)}"
             print(detail)

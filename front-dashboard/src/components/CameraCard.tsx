@@ -5,7 +5,6 @@ import { Switch } from "@/components/ui/switch";
 import { MapPin, Clock, Zap, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { WebRTCPlayer } from "./WebRTCPlayer";
 
 interface CameraCardProps {
   camera: Camera;
@@ -37,14 +36,11 @@ export function CameraCard({ camera, onToggleSmartFocus, onSelect }: CameraCardP
           )}
         >
           {camera.online ? (
-            <div className="relative flex h-full w-full flex-col items-center justify-center gap-1 overflow-hidden">
-              <WebRTCPlayer cameraId={camera.id} />
-              {camera.smartFocusEnabled && (
-                <div className="absolute top-2 right-2 flex h-3 w-3 z-10">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-40" />
-                  <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
-                </div>
-              )}
+            <div className="flex flex-col items-center justify-center gap-1">
+              <span className="text-xs text-muted-foreground/70 uppercase tracking-widest">Preview</span>
+              <span className="text-[10px] text-muted-foreground/60">
+                Open camera to view live feed
+              </span>
             </div>
           ) : (
             <span className="text-xs text-muted-foreground/40">OFFLINE</span>
@@ -55,6 +51,11 @@ export function CameraCard({ camera, onToggleSmartFocus, onSelect }: CameraCardP
         <div className="absolute left-2 top-2 flex gap-1.5 z-10">
           <StatusBadge variant={camera.online ? "online" : "offline"} label={camera.online ? "Online" : "Offline"} />
         </div>
+        {camera.online && camera.signalingUrl && (
+          <div className="absolute bottom-2 left-2 z-10">
+            <StatusBadge variant="active" label="WebRTC" />
+          </div>
+        )}
         {camera.smartFocusEnabled && (
           <div className="absolute right-2 top-2 z-10">
             <StatusBadge variant="active" label="AI Focus" />

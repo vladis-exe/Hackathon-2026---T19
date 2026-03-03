@@ -73,7 +73,7 @@ export function FocusAreaSelector({
     <div
       ref={containerRef}
       className={cn(
-        "relative cursor-crosshair select-none overflow-hidden aspect-[4/3]",
+        "relative cursor-crosshair select-none overflow-hidden aspect-video",
         disabled && "cursor-default",
         className
       )}

@@ -26,6 +26,24 @@ type BackendCamera = {
   streamingMode?: string | null;
 };
 
+function normalizeSignalingUrl(raw: string | null | undefined): string | undefined {
+  if (!raw) return undefined;
+  let s = String(raw).trim();
+  if (!s) return undefined;
+  if (!s.includes("://")) s = `http://${s}`;
+  try {
+    const u = new URL(s);
+    // Default to WebRTC signaling port; rewrite legacy 8080.
+    const port = u.port ? Number(u.port) : undefined;
+    if (!port) u.port = "8888";
+    else if (port === 8080) u.port = "8888";
+    return u.toString().replace(/\/$/, "");
+  } catch {
+    // If parsing fails, return the raw string (best effort).
+    return s;
+  }
+}
+
 function mapBackendCameraToUi(cam: BackendCamera, index: number): Camera {
   const camId = cam._id ?? cam.id ?? `unknown-${index}`;
   const baseName = cam.name || `Camera ${index + 1}`;
@@ -62,7 +80,7 @@ function mapBackendCameraToUi(cam: BackendCamera, index: number): Camera {
     ],
     // Real stream is shown via WebRTC (liveFeedNode); no test video default.
     streamUrl: undefined,
-    signalingUrl: cam.signalingUrl ?? undefined,
+    signalingUrl: normalizeSignalingUrl(cam.signalingUrl),
     focusArea: cam.focusArea ?? undefined,
   };
 }
