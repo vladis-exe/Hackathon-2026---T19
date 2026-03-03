@@ -143,26 +143,6 @@ export function FocusAreaSelector({
         </>
       )}
 
-      {/* Subtle indicator when a focus area is set (but not drawing) */}
-      {!drawing && focusArea && (
-        <div className="absolute bottom-2 left-2 flex items-center gap-2">
-          <span className="rounded-md bg-primary/10 border border-primary/30 px-2 py-1 text-[10px] text-primary backdrop-blur-sm">
-            Focus area set — drag to redefine
-          </span>
-          <button
-            type="button"
-            className="rounded-md bg-destructive/20 border border-destructive/40 px-2 py-1 text-[10px] text-destructive hover:bg-destructive/30 backdrop-blur-sm"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onFocusAreaChange(undefined);
-            }}
-          >
-            Clear
-          </button>
-        </div>
-      )}
-
       {/* Instructions */}
       {!focusArea && !drawing && !disabled && (
         <div className="absolute bottom-2 left-2 rounded-md bg-card/80 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur-sm">

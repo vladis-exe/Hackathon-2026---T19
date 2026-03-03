@@ -22,6 +22,8 @@ type BackendCamera = {
     description?: string | null;
   } | null;
   focusArea?: { x: number; y: number; width: number; height: number } | null;
+  signalingUrl?: string | null;
+  streamingMode?: string | null;
 };
 
 function mapBackendCameraToUi(cam: BackendCamera, index: number): Camera {
@@ -48,6 +50,7 @@ function mapBackendCameraToUi(cam: BackendCamera, index: number): Camera {
     originalBandwidthHistory,
     qodActive: cam.highResolution,
     smartFocusEnabled: cam.highResolution,
+    streamingMode: (cam.streamingMode as any) || "LOW",
     online: true,
     latencyMs: 20 + Math.round(Math.random() * 15),
     resolution: "1920×1080",
@@ -59,6 +62,7 @@ function mapBackendCameraToUi(cam: BackendCamera, index: number): Camera {
     ],
     // Real stream is shown via WebRTC (liveFeedNode); no test video default.
     streamUrl: undefined,
+    signalingUrl: cam.signalingUrl ?? undefined,
     focusArea: cam.focusArea ?? undefined,
   };
 }
@@ -90,6 +94,19 @@ export async function toggleSmartFocus(
   });
   if (!res.ok) {
     throw new Error(`Failed to toggle smart focus: ${res.status}`);
+  }
+  return { success: true };
+}
+
+export async function setStreamingMode(
+  cameraId: string,
+  mode: string
+): Promise<{ success: boolean }> {
+  const res = await fetch(`/api/dashboard/cameras/${encodeURIComponent(cameraId)}/set_mode/${mode}`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to set streaming mode: ${res.status}`);
   }
   return { success: true };
 }

@@ -36,6 +36,10 @@ class Camera(BaseModel):
     webrtcStream: Optional[str] = Field(
         None, description="WebRTC stream endpoint or identifier for the camera"
     )
+    signalingUrl: Optional[str] = Field(
+        None, description="Direct IP and port for the Android signaling server (e.g. http://10.35.218.9:8888)"
+    )
+    streamingMode: str = Field("LOW", description="Current streaming mode: LOW, HIGH, VISION, HYBRID")
     location: Optional[Location] = None
     area: Optional[List[dict]] = Field(None, description="Selected area coordinates")
 
@@ -53,6 +57,8 @@ class CameraOut(BaseModel):
     phoneNumber: Optional[str] = None
     highResolution: bool = False
     webrtcStream: Optional[str] = None
+    signalingUrl: Optional[str] = None
+    streamingMode: str = "LOW"
     location: Optional[Location] = None
     focusArea: Optional[FocusAreaOut] = None
 
@@ -60,6 +66,8 @@ class CameraOut(BaseModel):
 class RegisterCameraRequest(BaseModel):
     phoneNumber: str = Field(..., description="Phone number for the camera's 5G connection")
     name: Optional[str] = Field(None, description="Optional friendly name for the camera")
+    signalingUrl: Optional[str] = Field(None, description="Direct IP and port for the Android signaling server (e.g. http://10.35.218.9:8888)")
+    streamingMode: Optional[str] = Field("LOW", description="Streaming mode: LOW, HIGH, VISION, HYBRID")
     location: Optional[Location] = None
 
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Camera, FocusArea } from "@/types/camera";
-import { fetchCameras as fetchCamerasFromApi, toggleSmartFocus as toggleSmartFocusApi, setFocusArea as setFocusAreaApi, clearFocusArea as clearFocusAreaApi } from "@/services/api";
+import { Camera, FocusArea, StreamingMode } from "@/types/camera";
+import { fetchCameras as fetchCamerasFromApi, toggleSmartFocus as toggleSmartFocusApi, setFocusArea as setFocusAreaApi, clearFocusArea as clearFocusAreaApi, setStreamingMode as setStreamingModeApi } from "@/services/api";
 
 const MOCK_CAMERAS: Camera[] = [
   {
@@ -24,6 +24,8 @@ const MOCK_CAMERAS: Camera[] = [
       { timestamp: "12:05", message: "Object detected: person" },
     ],
     focusArea: { x: 25, y: 20, width: 50, height: 60 },
+    signalingUrl: "http://10.35.218.9:8888", // Default Android dev IP
+    streamingMode: "LOW",
   },
   {
     id: "cam-2",
@@ -35,6 +37,7 @@ const MOCK_CAMERAS: Camera[] = [
     originalBandwidthHistory: [3000, 3100, 3200, 3150, 3300, 3200, 3200],
     qodActive: true,
     smartFocusEnabled: false,
+    streamingMode: "HIGH",
     online: true,
     latencyMs: 15,
     resolution: "3840×2160",
@@ -55,6 +58,7 @@ const MOCK_CAMERAS: Camera[] = [
     originalBandwidthHistory: [1300, 1350, 1400, 1380, 1420, 1400, 1400],
     qodActive: false,
     smartFocusEnabled: false,
+    streamingMode: "LOW",
     online: true,
     latencyMs: 8,
     resolution: "1280×720",
@@ -74,6 +78,7 @@ const MOCK_CAMERAS: Camera[] = [
     originalBandwidthHistory: [1600, 1500, 1400, 800, 300, 0, 0],
     qodActive: false,
     smartFocusEnabled: false,
+    streamingMode: "LOW",
     online: false,
     latencyMs: 0,
     resolution: "1920×1080",
@@ -104,6 +109,8 @@ const MOCK_CAMERAS: Camera[] = [
       { timestamp: "12:12", message: "Object detected: vehicle" },
     ],
     focusArea: { x: 10, y: 30, width: 80, height: 50 },
+    streamingMode: "HYBRID",
+    signalingUrl: "http://10.35.218.9:8888",
   },
   {
     id: "cam-6",
@@ -123,6 +130,7 @@ const MOCK_CAMERAS: Camera[] = [
     events: [
       { timestamp: "11:00", message: "Stream started" },
     ],
+    streamingMode: "VISION",
   },
 ];
 
@@ -226,8 +234,24 @@ export function useCameras() {
     );
   }, []);
 
+  const setStreamingMode = useCallback((cameraId: string, mode: StreamingMode) => {
+    setCameras((prev) =>
+      prev.map((cam) => {
+        if (cam.id !== cameraId) return cam;
+        const newEvent = {
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          message: `Mode changed to ${mode}`,
+        };
+        setStreamingModeApi(cameraId, mode).catch((err) =>
+          console.warn("Failed to set streaming mode in backend:", err)
+        );
+        return { ...cam, streamingMode: mode, events: [...cam.events, newEvent] };
+      })
+    );
+  }, []);
+
   const totalBandwidthKbps = cameras.reduce((sum, c) => sum + c.bandwidthKbps, 0);
   const onlineCount = cameras.filter((c) => c.online).length;
 
-  return { cameras, toggleSmartFocus, setFocusArea, totalBandwidthKbps, onlineCount, dataSource };
+  return { cameras, toggleSmartFocus, setFocusArea, setStreamingMode, totalBandwidthKbps, onlineCount, dataSource };
 }

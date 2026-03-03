@@ -10,6 +10,8 @@ export interface FocusArea {
   height: number;
 }
 
+export type StreamingMode = "LOW" | "HIGH" | "VISION" | "HYBRID";
+
 export interface Camera {
   id: string;
   name: string;
@@ -20,6 +22,7 @@ export interface Camera {
   originalBandwidthHistory: number[];
   qodActive: boolean;
   smartFocusEnabled: boolean;
+  streamingMode: StreamingMode;
   online: boolean;
   latencyMs: number;
   resolution: string;
@@ -28,4 +31,5 @@ export interface Camera {
   events: CameraEvent[];
   focusArea?: FocusArea;
   streamUrl?: string;
+  signalingUrl?: string;
 }

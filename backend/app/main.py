@@ -1,13 +1,28 @@
 from app.gemini import get_prompt
-from fastapi import FastAPI, HTTPException, Path, Body
-from fastapi.responses import FileResponse, HTMLResponse
-from typing import List
-from pathlib import Path as PathLib
-from dotenv import load_dotenv
-import httpx
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    BackgroundTasks,
+    Path,
+    Query,
+    Body,
+    Request,
+)
+from fastapi.responses import JSONResponse, PlainTextResponse, HTMLResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+import socketio
+import asyncio
 import os
-from google import genai
+from dotenv import load_dotenv
+from pathlib import Path as PathLib
+import random
+import time
+from typing import List, Optional, Dict
+from datetime import datetime
+from pydantic import BaseModel, Field
+import httpx
 from google.genai.types import HttpOptions
+from pathlib import Path as PathLib
 import json
 
 from . import database as db
@@ -79,6 +94,81 @@ async def set_high_res(cameraId: str = Path(..., description="Camera id"), value
         # Notify the specific camera via socket.io
         camera_dict = db.to_camera_dict(camera)
         await sio.emit("camera_set_highres", {"cameraId": cameraId, "high_res": value}, room=cameraId)
+        return camera_dict
+        
+    raise HTTPException(status_code=404, detail="Camera not found")
+
+@api_app.post(
+    "/api/dashboard/cameras/{cameraId}/sdp-offer",
+    tags=["cameras"],
+    responses={400: {"model": Error}, 404: {"model": Error}},
+)
+async def proxy_sdp_offer(
+    request: Request,
+    cameraId: str = Path(..., description="Camera id")
+):
+    """
+    Proxy the SDP offer to the camera's signaling URL.
+    This bypasses CORS issues between the browser and the camera.
+    """
+    from bson import ObjectId
+    if not ObjectId.is_valid(cameraId):
+        raise HTTPException(status_code=400, detail="Invalid camera ID format.")
+
+    camera = db.get_db().find_one({"_id": ObjectId(cameraId)})
+    if not camera or "signalingUrl" not in camera:
+        raise HTTPException(status_code=404, detail="Camera or signaling URL not found")
+
+    signaling_url = camera["signalingUrl"]
+    offer_sdp = await request.body()
+    
+    print(f"Proxying SDP offer to {signaling_url} ({len(offer_sdp)} bytes)")
+    
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            # The Android signaling server expects a POST with raw SDP text
+            response = await client.post(signaling_url, content=offer_sdp)
+            print(f"Signaling response: {response.status_code}")
+            if response.status_code == 200:
+                return PlainTextResponse(content=response.text, status_code=200)
+            else:
+                # If the camera signaling server returns a non-200 status,
+                # return its response text and status code directly.
+                return PlainTextResponse(content=response.text, status_code=response.status_code)
+        except Exception as e:
+            detail = f"Signaling error: {str(e)}"
+            print(detail)
+            raise HTTPException(status_code=500, detail=detail)
+
+
+@api_app.post(
+    "/api/dashboard/cameras/{cameraId}/set_mode/{mode}",
+    response_model=CameraOut,
+    tags=["cameras"],
+    responses={400: {"model": Error}, 404: {"model": Error}},
+)
+async def set_streaming_mode(
+    cameraId: str = Path(..., description="Camera id"), 
+    mode: str = Path(..., description="Streaming mode: LOW, HIGH, VISION, HYBRID")
+):
+    """
+    Set the streaming mode for a camera
+    """
+    from bson import ObjectId
+    if not ObjectId.is_valid(cameraId):
+        raise HTTPException(status_code=400, detail="Invalid camera ID format.")
+
+    if mode not in ["LOW", "HIGH", "VISION", "HYBRID"]:
+        raise HTTPException(status_code=400, detail="Invalid streaming mode.")
+
+    camera = db.get_db().find_one_and_update(
+        {"_id": ObjectId(cameraId)},
+        {"$set": {"streamingMode": mode}},
+        return_document=True
+    )
+    if camera:
+        camera_dict = db.to_camera_dict(camera)
+        await sio.emit("camera_mode_updated", {"cameraId": cameraId, "mode": mode}, room=cameraId)
         return camera_dict
         
     raise HTTPException(status_code=404, detail="Camera not found")
@@ -155,6 +245,10 @@ def register_camera(req: RegisterCameraRequest):
     """
     new_camera_data = req.dict()
     new_camera_data['highResolution'] = False # Default value
+    if 'streamingMode' not in new_camera_data or not new_camera_data['streamingMode']:
+        new_camera_data['streamingMode'] = 'LOW'
+    
+    # If signalingUrl is not provided, we could set a default or leave it null
     
     result = db.get_db().insert_one(new_camera_data)
     created_camera = db.get_db().find_one({"_id": result.inserted_id})
@@ -354,6 +448,8 @@ async def broadcast_cameras_periodically():
 
 @api_app.on_event("startup")
 async def start_background_tasks():
+    # Initialize DB
+    db.initialize_db()
     # store the task so we can cancel on shutdown
     api_app.state._sio_broadcast_task = asyncio.create_task(broadcast_cameras_periodically())
 

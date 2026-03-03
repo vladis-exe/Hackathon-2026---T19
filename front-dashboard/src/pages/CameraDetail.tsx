@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft, MapPin, Clock, Zap, Monitor, Film,
-  AlertTriangle, Eye,
+  AlertTriangle, Eye, Circle, Scan, CircleDashed,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 export default function CameraDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { cameras, toggleSmartFocus, setFocusArea } = useCameras();
+  const { cameras, toggleSmartFocus, setFocusArea, setStreamingMode } = useCameras();
 
   const camera = cameras.find((c) => c.id === id);
 
@@ -86,17 +86,57 @@ export default function CameraDetail() {
                 <FocusAreaSelector
                   className="w-full"
                   streamUrl={undefined}
-                  liveFeedNode={camera.online ? <WebRTCPlayer cameraId={camera.id} /> : undefined}
+                  liveFeedNode={camera.online ? <WebRTCPlayer
+                    cameraId={camera.id}
+                    signalingUrl={camera.signalingUrl}
+                    streamingMode={camera.streamingMode}
+                    smartFocusEnabled={camera.smartFocusEnabled}
+                    focusArea={camera.focusArea}
+                  /> : undefined}
                   focusArea={camera.focusArea}
                   onFocusAreaChange={(area) => setFocusArea(camera.id, area)}
-                  disabled={!camera.online}
+                  disabled={!camera.online || camera.streamingMode !== "HYBRID"}
                 />
                 {/* Overlay badges */}
                 <div className="absolute left-3 top-3 flex gap-2">
-                  {camera.smartFocusEnabled && (
-                    <StatusBadge variant="active" label="AI Focus Active" />
-                  )}
+                  {/* Removed StatusBadge for Mode */}
                 </div>
+                {/* Mode Selector Buttons */}
+                <div className="absolute right-3 top-3 flex gap-2">
+                  <div className="flex items-center gap-1 rounded-lg bg-background/60 p-1 backdrop-blur-md border border-border/40">
+                    <ModeButton
+                      active={camera.streamingMode === "LOW"}
+                      onClick={() => setStreamingMode(camera.id, "LOW")}
+                      icon={<CircleDashed className="h-4 w-4" />}
+                      tooltip="LOW"
+                    />
+                    <ModeButton
+                      active={camera.streamingMode === "HIGH"}
+                      onClick={() => setStreamingMode(camera.id, "HIGH")}
+                      icon={<Circle className="h-4 w-4" />}
+                      tooltip="HIGH"
+                    />
+                    <ModeButton
+                      active={camera.streamingMode === "VISION"}
+                      onClick={() => setStreamingMode(camera.id, "VISION")}
+                      icon={<Eye className="h-4 w-4" />}
+                      tooltip="VISION"
+                    />
+                    <ModeButton
+                      active={camera.streamingMode === "HYBRID"}
+                      onClick={() => setStreamingMode(camera.id, "HYBRID")}
+                      icon={<Scan className="h-4 w-4" />}
+                      tooltip="HYBRID"
+                    />
+                  </div>
+                </div>
+
+                {camera.streamingMode === "HYBRID" && camera.focusArea && (
+                  <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-md bg-primary/10 border border-primary/30 px-3 py-1.5 text-[10px] text-primary backdrop-blur-md animate-in fade-in slide-in-from-bottom-1 uppercase tracking-wider font-medium">
+                    <Scan className="h-3 w-3" />
+                    <span>Focus area active</span>
+                  </div>
+                )}
                 {camera.online && (
                   <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-md bg-card/80 px-2 py-1 backdrop-blur-sm">
                     <Eye className="h-3 w-3 text-primary" />
@@ -107,26 +147,28 @@ export default function CameraDetail() {
             </div>
 
             {/* Smart Focus Toggle bar */}
-            <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-lg",
-                  camera.smartFocusEnabled ? "bg-primary/10" : "bg-secondary"
-                )}>
-                  <Eye className={cn("h-4 w-4", camera.smartFocusEnabled ? "text-primary" : "text-muted-foreground")} />
+            <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-lg",
+                    camera.smartFocusEnabled ? "bg-primary/10" : "bg-secondary"
+                  )}>
+                    <Eye className={cn("h-4 w-4", camera.smartFocusEnabled ? "text-primary" : "text-muted-foreground")} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">QoD Simulation</p>
+                    <p className="text-xs text-muted-foreground">
+                      {camera.smartFocusEnabled ? "AI is optimizing bandwidth" : "Raw stream, no optimization"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold">Smart Focus</p>
-                  <p className="text-xs text-muted-foreground">
-                    {camera.smartFocusEnabled ? "AI is optimizing bandwidth" : "Raw stream, no optimization"}
-                  </p>
-                </div>
+                <Switch
+                  checked={camera.smartFocusEnabled}
+                  onCheckedChange={handleToggle}
+                  disabled={!camera.online}
+                />
               </div>
-              <Switch
-                checked={camera.smartFocusEnabled}
-                onCheckedChange={handleToggle}
-                disabled={!camera.online}
-              />
             </div>
 
           </div>
@@ -191,5 +233,32 @@ function StatItem({ icon, label, value }: { icon: React.ReactNode; label: string
       </div>
       <p className="text-data mt-1 font-semibold text-foreground">{value}</p>
     </div>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  icon,
+  tooltip
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  tooltip: string
+}) {
+  return (
+    <Button
+      variant={active ? "default" : "ghost"}
+      size="icon"
+      className={cn(
+        "h-8 w-8 rounded-md transition-all",
+        active ? "shadow-sm scale-105" : "text-muted-foreground hover:text-foreground"
+      )}
+      onClick={onClick}
+      title={tooltip}
+    >
+      {icon}
+    </Button>
   );
 }
